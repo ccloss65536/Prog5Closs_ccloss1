@@ -28,7 +28,7 @@ int main(int argc, char** argv){
 		return 64;
 	}
 	if(block_size < MIN_BLOCK_SIZE || block_size > MAX_BLOCK_SIZE || !is_power2(block_size)){
-		fprintf(stderr, "num_blocks must be a power of 2 between %d and %d\n",MIN_BLOCK_SIZE, MAX_BLOCK_SIZE);
+		fprintf(stderr, "block_size must be a power of 2 between %d and %d\n",MIN_BLOCK_SIZE, MAX_BLOCK_SIZE);
 		return 64;
 	}
 	int total_size = blocks * block_size;
