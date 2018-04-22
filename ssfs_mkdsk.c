@@ -10,6 +10,7 @@ const int MIN_BLOCK_SIZE = 128;
 const int MAX_BLOCK_SIZE = 512;
 const int MIN_BLOCKS = 1024;
 const int MAX_BLOCKS = 128*1024;
+const int MAX_NUM_FILES = 256;
 
 
 
@@ -48,5 +49,3 @@ int main(int argc, char** argv){
 	}
 	return 0;
 }
-
-
