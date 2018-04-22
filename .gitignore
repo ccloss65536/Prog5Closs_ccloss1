@@ -30,9 +30,12 @@
 *.exe
 *.out
 *.app
-prog4*
+
 
 #Swap files
 *.swp
 *.swo
 *.sw*
+
+#Apple BS
+.DS_Store
