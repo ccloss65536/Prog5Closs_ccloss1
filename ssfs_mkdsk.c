@@ -1,12 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
-<<<<<<< HEAD
-#iclude "inode.c"
-=======
+#include "inode.c"
+
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
->>>>>>> 2179effce19422c9ec8018a7a2e74423eb745282
 
 const int MIN_BLOCK_SIZE = 128;
 const int MAX_BLOCK_SIZE = 512;
@@ -40,8 +38,6 @@ int main(int argc, char** argv){
 	}
 	int total_size = blocks * block_size;
 	if(!name) name = "DISK";
-	FILE* disk = fopen(name,"w");
-
 	//intialize free block list, block and block size data and inodes...
 	
 	int disk_fd = open(name,O_WRONLY | O_CREAT);
