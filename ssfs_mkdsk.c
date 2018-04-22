@@ -10,6 +10,7 @@ const int MIN_BLOCK_SIZE = 128;
 const int MAX_BLOCK_SIZE = 512;
 const int MIN_BLOCKS = 1024;
 const int MAX_BLOCKS = 128*1024;
+const int MAX_NUM_FILES = 256;
 
 
 
@@ -39,7 +40,7 @@ int main(int argc, char** argv){
 	int total_size = blocks * block_size;
 	if(!name) name = "DISK";
 	//intialize free block list, block and block size data and inodes...
-	
+
 	int disk_fd = open(name,O_WRONLY | O_CREAT);
 	// TODO: intialize free block list, block and block size data and inodes...
 	for(int i = 0; i < (total_size - 0)/2; i++){ //write two at a time to go faster
@@ -47,5 +48,3 @@ int main(int argc, char** argv){
 	}
 	return 0;
 }
-
-
