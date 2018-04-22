@@ -37,11 +37,12 @@ int main(int argc, char** argv){
 		return 64;
 	}
 	int total_size = blocks * block_size;
-	if(!name) name = "DISK";
-	//intialize free block list, block and block size data and inodes...
-	
+	if(!name) name = "DISK";	
 	int disk_fd = open(name,O_WRONLY | O_CREAT);
 	// TODO: intialize free block list, block and block size data and inodes...
+	int sizes = {blocks, block_size};
+	write(disk_fd, sizes, sizeof(sizes));
+
 	for(int i = 0; i < (total_size - 0)/2; i++){ //write two at a time to go faster
 		write(disk_fd,"\7\7",2);
 	}
