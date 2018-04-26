@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "inode.c"
+#include <math.h>
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -41,11 +41,26 @@ int main(int argc, char** argv){
 	if(!name) name = "DISK";	
 	int disk_fd = open(name,O_WRONLY | O_CREAT);
 	// TODO: intialize free block list, block and block size data and inodes...
-	int sizes = {blocks, block_size};
+	int sizes[] = {blocks, block_size};
 	write(disk_fd, sizes, sizeof(sizes));
+	int negone = -1;
+	int zero = 0;
+	int one = 1;
+
+	for(int i = 0; i < 256; i++){
+		write(disk_fd, &negone, 4);
+	}
+	for(int i = 0; i < blocks/8; i++){
+		double numBlocksInUse = ceil((1032 + blocks/8.0) / block_size);
+		if(i <= (int) numBlocksInUse)
+			write(disk_fd, &negone, 1);
+		else
+			write(disk_fd, &zero, 1);
+	}
 
 	for(int i = 0; i < (total_size - 0)/2; i++){ //write two at a time to go faster
 		write(disk_fd,"\7\7",2);
 	}
+	
 	return 0;
 }
