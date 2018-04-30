@@ -36,18 +36,23 @@ void list();
 void shutdown();
 //not command functions
 int find_file(char* name) //find the index of the inode of the file with the given name, or -1 if not found
-void request(block_ptr block, buffer, char_read_write);
+void request(block_ptr block, buffer, char_read_write); //put a disk schedule request into the buffer
 
 
 
 //global variables shared between threads
-disk_request pending[30];
+const int max_requests = 30;
+int num_requests = 0;
+int next_free_request = 0;
+int next_to_do = 0;
+disk_request pending[max_requests];
 inode files[256];
 int num_files = 0;
 int block_size;
 int free_space; 
-pthread_mutex_t request_empty = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t request_fill = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t request_empty = PTHREAD_COND_INITIALIZER;
+pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t inode_list = PTHREAD_MUTEX_INITIALIZER;
 
 
