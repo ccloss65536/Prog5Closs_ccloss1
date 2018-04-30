@@ -56,10 +56,11 @@ int main(int argc, char** argv){
 			write(disk_fd, &negone, 1);
 		else
 			write(disk_fd, &zero, 1);
+		//TODO: fix free block list
 	}
 
-	for(int i = 0; i < (total_size - 0)/2; i++){ //write two at a time to go faster
-		write(disk_fd,"\7\7",2);
+	for(int i = 0; i < total_size - 4 - 1024 - ceil((1032 + blocks/8.0) / block_size); i++){ 
+				write(disk_fd,"\7",1);
 	}
 	
 	return 0;

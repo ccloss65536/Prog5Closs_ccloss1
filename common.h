@@ -1,6 +1,7 @@
 #pragma once
 #include <pthread.h>
 
+//types
 typedef int block_ptr;
 typedef struct{
 	block_ptr requested;
@@ -24,7 +25,7 @@ typedef struct {
 	block_ptr double_indirect;
 } inode;
 
-
+//functions
 int create(char* name);
 int import(char* new_name, char* unix_name);
 void cat(char* name);
@@ -33,6 +34,22 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes);
 void read_ssfs(char* name, int start_byte, int num_bytes);
 void list();
 void shutdown();
+//not command functions
+int find_file(char* name) //find the index of the inode of the file with the given name, or -1 if not found
+void request(block_ptr block, buffer, char_read_write);
 
+
+
+//global variables shared between threads
 disk_request pending[30];
+inode files[256];
+int num_files = 0;
+int block_size;
+int free_space; 
+pthread_mutex_t request_empty = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t request_fill = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t inode_list = PTHREAD_MUTEX_INITIALIZER;
+
+
+//free block list type to come
 
