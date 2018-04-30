@@ -3,9 +3,13 @@
 #include "common.h"
 
 
-void request(block_ptr block, buffer, char_read_write){
+void request(block_ptr block, char* buffer, char read_write){
 	pthread_mutex_lock(&request_condition_mutex);
-
+	while(num_requests >= max_requests) pthread_cond_wait(&request_empty, &request_condition_mutex);
+	num_requests++;
+	pending[next_free_request] = {block, buffer, read_write};
+	next_free_request = (next_free_request + 1) % max_requests; 
+	pthread_cond_signal(&request_fill);
 	pthread_mutex_unlock(&request_condition_mutex);
 }
 void startup(){
@@ -46,10 +50,12 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 		printf("File \"%s\" not found!\n",name);
 		return;
 	}
-	char* data = malloc( (num_bytes + 1) / block_size * block_size); //not an exacct ceil, but memory is cheap and floatng point ops are not
+	char* data = malloc( (num_bytes + 1) / block_size * block_size); //not an exact ceil, but memory is cheap and floatng point ops are not
 	int* indirect = malloc(block_size);
 	if(!data || !indirect){
 		perror("Allocation for read_ssfs failed!: ");
+		free(data);
+		free(indirect);
 		exit(-1);
 	}
 	int start_block_ind = start_byte/block_size
@@ -62,15 +68,17 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 		request(inode.indirect, indirect, 'r');
 		int block;
 			for(; curr_block_ind < 12 + block_size/sizeof(block_ptr)  && curr_block_ind <= end_block_ind; curr_block_ind++){ 
-		request(indirect, data + curr_block_ind*block_size, 'r');
-	}
+		request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'r');
 
+	}
 		//TODO: finish indirect
 	}
 	if(curr_block_ind == 12 + block_size/sizeof(block_ptr)){
 		//TODO: finish double indirect
 	}	
-
+	write(stdout,data + start_byte, num_bytes);
+	free(data);
+	free(indirect);
 }
 void list(){
 	}
