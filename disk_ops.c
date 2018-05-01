@@ -3,7 +3,8 @@
 #include "common.h"
 
 
-void request(block_ptr block, char* buffer, char read_write){
+//Puts a request for the disk scheduler into the array
+void request(block_ptr block, void* buffer, char read_write){
 	pthread_mutex_lock(&request_condition_mutex);
 	while(num_requests >= max_requests) pthread_cond_wait(&request_empty, &request_condition_mutex);
 	num_requests++;
@@ -22,12 +23,12 @@ void startup(){
 	// or switch to linked list format if needed
 }
 int find_file(char* name){
-	pthread_mutex_lock(&inode_list);
+	pthread_mutex_lock(&inode_list);//We need to lock here because some thread could make a new file while we traverse the list
 	int i;
 	for(int i = 0; i < num_files; i++){
-		if( strcmp(inodes[i].name, name) == 0) break;
+		if( strcmp(inodes[i].name, name) == 0) break; //strcmp rdeturns zero if the two strings are equal
 	}
-	if(i == num_files) i = -1;
+	if(i == num_files) i = -1; //If not found, return -1
 	pthread_mutex_unlock(&inode_list);
 	return i;
 }
@@ -58,22 +59,22 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 		free(indirect);
 		exit(-1);
 	}
-	int start_block_ind = start_byte/block_size
-	int curr_block_ind = start_block_ind
-	int end_block_ind = (start_byte + num_bytes)/block_size
+	int start_block_ind = start_byte/block_size; //The start byte is in the file's start_block_indth data block
+	int curr_block_ind = start_block_ind;//keep track of which block we need to read from
+	int end_block_ind = (start_byte + num_bytes)/block_size;
 	for(; curr_block_ind < 12 && curr_block_ind <= end_block_ind; curr_block_ind++){
 		request(inode.direct[i], data + curr_block_ind*block_size, 'r');
 	}
-	if(curr_block_ind == 12){
+	int ptrs_per_block = block_size/sizeof(block_ptr);
+	if(curr_block_ind == 12){//the 0th through 11th blocks are direct blocks
 		request(inode.indirect, indirect, 'r');
-		int block;
-			for(; curr_block_ind < 12 + block_size/sizeof(block_ptr)  && curr_block_ind <= end_block_ind; curr_block_ind++){ 
-		request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'r');
+		block_ptr block;
+		for(; curr_block_ind < 12 + ptrs_per_block  && curr_block_ind <= end_block_ind; curr_block_ind++){ 
+		request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'r'); 
 
+		}
 	}
-		//TODO: finish indirect
-	}
-	if(curr_block_ind == 12 + block_size/sizeof(block_ptr)){
+	if(curr_block_ind == 12 + ptrs_per_block){
 		//TODO: finish double indirect
 	}	
 	write(stdout,data + start_byte, num_bytes);

@@ -36,7 +36,7 @@ void list();
 void shutdown();
 //not command functions
 int find_file(char* name) //find the index of the inode of the file with the given name, or -1 if not found
-void request(block_ptr block, buffer, char_read_write); //put a disk schedule request into the buffer
+void request(block_ptr block, void* buffer, char_read_write); //put a disk schedule request into the buffer
 
 
 
