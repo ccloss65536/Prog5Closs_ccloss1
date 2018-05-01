@@ -53,10 +53,12 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 	}
 	char* data = malloc( (num_bytes + 1) / block_size * block_size); //not an exact ceil, but memory is cheap and floatng point ops are not
 	int* indirect = malloc(block_size);
-	if(!data || !indirect){
+	int* double_indirect = malloc(block_size);
+	if(!data || !indirect || !double_indirect){
 		perror("Allocation for read_ssfs failed!: ");
 		free(data);
 		free(indirect);
+		free(double_indirect);
 		exit(-1);
 	}
 	int start_block_ind = start_byte/block_size; //The start byte is in the file's start_block_indth data block
@@ -66,6 +68,7 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 		request(inode.direct[i], data + curr_block_ind*block_size, 'r');
 	}
 	int ptrs_per_block = block_size/sizeof(block_ptr);
+
 	if(curr_block_ind == 12){//the 0th through 11th blocks are direct blocks
 		request(inode.indirect, indirect, 'r');
 		block_ptr block;
@@ -74,8 +77,16 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 
 		}
 	}
-	if(curr_block_ind == 12 + ptrs_per_block){
-		//TODO: finish double indirect
+	int indirect_end_block = 12 + ptrs_per_block;
+	if(curr_block_ind == indirect_end_block) {
+		request(inode.double_indirect, double_indirect, 'r');
+		while(curr_block_ind < indirect_end_block + ptrs_per_block*ptrs_per_block){
+			request(double_indirect[(curr_block_ind - indirect_end_block) / block_size], indirect, 'r');
+			for(int i = 0; i < block_size; i++){
+				request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'r'); \
+				curr_block_ind++;
+			}
+		}
 	}	
 	write(stdout,data + start_byte, num_bytes);
 	free(data);
