@@ -36,8 +36,8 @@ int create(char* name){
 	}
 int import(char* new_name, char* unix_name){}
 void cat(char* name){
-	int inode = find_file(name);
-	if(inode < 0) {
+	int index = find_file(name)
+	if(index < 0) {
 		printf("File \"%s\" not found!\n",name);
 		return;
 	}
@@ -46,11 +46,12 @@ void cat(char* name){
 void delete(char* name){}
 int write_ssfs(char* name, char input, int start_byte, int num_bytes){}
 void read_ssfs(char* name, int start_byte, int num_bytes){
-	int inode = find_file(name);
-	if(inode < 0) {
+	int index = find_file(name)
+	if(index < 0) {
 		printf("File \"%s\" not found!\n",name);
 		return;
 	}
+	inode file_inode = inodes[index];
 	char* data = malloc( (num_bytes + 1) / block_size * block_size); //not an exact ceil, but memory is cheap and floatng point ops are not
 	int* indirect = malloc(block_size);
 	int* double_indirect = malloc(block_size);
@@ -65,12 +66,12 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 	int curr_block_ind = start_block_ind;//keep track of which block we need to read from
 	int end_block_ind = (start_byte + num_bytes)/block_size;
 	for(; curr_block_ind < 12 && curr_block_ind <= end_block_ind; curr_block_ind++){
-		request(inode.direct[i], data + curr_block_ind*block_size, 'r');
+		request(file_inode.direct[i], data + curr_block_ind*block_size, 'r');
 	}
 	int ptrs_per_block = block_size/sizeof(block_ptr);
 
 	if(curr_block_ind == 12){//the 0th through 11th blocks are direct blocks
-		request(inode.indirect, indirect, 'r');
+		request(file_inode.indirect, indirect, 'r');
 		block_ptr block;
 		for(; curr_block_ind < 12 + ptrs_per_block  && curr_block_ind <= end_block_ind; curr_block_ind++){ 
 		request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'r'); 
@@ -79,7 +80,7 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 	}
 	int indirect_end_block = 12 + ptrs_per_block;
 	if(curr_block_ind == indirect_end_block) {
-		request(inode.double_indirect, double_indirect, 'r');
+		request(file_inode.double_indirect, double_indirect, 'r');
 		while(curr_block_ind < indirect_end_block + ptrs_per_block*ptrs_per_block){
 			request(double_indirect[(curr_block_ind - indirect_end_block) / block_size], indirect, 'r');
 			for(int i = 0; i < block_size; i++){
