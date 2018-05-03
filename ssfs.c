@@ -162,6 +162,11 @@ void* readThreadOps(void* threadName){
 
 int main(int argc, char** argv){
 
+  char* thread1ops[100];
+  char* thread2ops[100];
+  char* thread3ops[100];
+  char* thread4ops[100];
+
   string usage = "ssfs <disk file name> thread1ops.txt thread2ops.txt thread3ops.txt thread4ops.txt\n";
 
   if(argc > 6){
@@ -175,10 +180,10 @@ int main(int argc, char** argv){
   //store argv[1] as the disk file name
   string diskName = argv[1];
   if(argc >= 3){ //create one thread
-    argv[2]
+    thread1ops = argv[2];
   }
   if(argc >= 4){ //create another thread
-    argv[3]
+    thread2ops = argv[3];
   }
   if(argc >= 5){ //create another thread
     argv[4]

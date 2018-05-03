@@ -38,7 +38,7 @@ int main(int argc, char** argv){
 		return 64;
 	}
 	int total_size = blocks * block_size;
-	if(!name) name = "DISK";	
+	if(!name) name = "DISK";
 	int disk_fd = open(name,O_WRONLY | O_CREAT);
 	// TODO: intialize free block list, block and block size data and inodes...
 	int sizes[] = {blocks, block_size};
@@ -59,9 +59,9 @@ int main(int argc, char** argv){
 		//TODO: fix free block list
 	}
 
-	for(int i = 0; i < total_size - 4 - 1024 - ceil((1032 + blocks/8.0) / block_size); i++){ 
+	for(int i = 0; i < total_size - 4 - 1024 - ceil((1032 + blocks/8.0) / block_size); i++){
 				write(disk_fd,"\7",1);
 	}
-	
+
 	return 0;
 }
