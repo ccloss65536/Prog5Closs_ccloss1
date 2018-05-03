@@ -31,7 +31,7 @@ int find_file(char* name){
 	return i;
 }
 int create(char* name){
-
+	
 	}
 int import(char* new_name, char* unix_name){}
 void cat(char* name){
@@ -42,7 +42,36 @@ void cat(char* name){
 	}
 	read_ssfs(name, 0, inodes[inode].size);
 }
-void erase(char* name){}
+void erase(char* name){
+	int index = find_file(name);
+	inode n;
+	if(index > -1){
+		n = inodes[index];
+	else {
+		printf("File %s not found!\n",name);
+	}
+	int curr_block_ind;
+	int* indirect = malloc(block_size);
+	int* double_indirect = malloc(block_size);
+	if(!data || !indirect || !double_indirect){
+		perror("Allocation for read_ssfs failed!: ");
+		free(data);
+		free(indirect);
+		free(double_indirect);
+		exit(-1);
+	}
+	for(int i = 0; i < 12 && i < n.size/block_size; i++){
+		int block_num = inode.direct[i];
+		free_bitlist[block_num/8] &= ~(1 << (block_num % 8));
+		curr_block_ind++;
+	}
+	if(curr_block_ind == 12){
+		request(inode.indirect, indirect, 'r');
+
+
+}
+
+
 int write_ssfs(char* name, char input, int start_byte, int num_bytes){}
 void read_ssfs(char* name, int start_byte, int num_bytes){
 	int index = find_file(name)
@@ -93,7 +122,15 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 	free(indirect);
 }
 void list(){
+	pthread_mutex_lock(&inode_list);
+	for(int i = 0; i < max_files; i++){
+		if(inodes[i].size >= 0){
+			printf("Name: %d Size: %d",inodes[i].name,inodes[i].size);
+		}
 	}
-void shutdown(){}
+	pthread_mutex_unlock(&inode_list);
+void shutdown(){
+
+	}
 
 
