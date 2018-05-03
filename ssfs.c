@@ -21,7 +21,7 @@
 void* readThreadOps(void* threadName){
   FILE* threadOps;
   char lineBuff[1024];
-  string* operations = {"CREATE","IMPORT","CAT","DELETE","WRITE","READ","LIST","SHUTDOWN"};
+  //string* operations = {"CREATE","IMPORT","CAT","DELETE","WRITE","READ","LIST","SHUTDOWN"};
   //converts the thread name to a string and opens it for reading
   char* nameOfThread = (char*) threadName;
   threadOps = fopen(threadName, "r");
@@ -148,10 +148,10 @@ void* readThreadOps(void* threadName){
       read_ssfs(writeFileName, writeChar, startByte, numBytes);
 
 
-    } else if(strcmp(lineBuff, "LIST")){
+    } else if(strcmp(lineBuff, "LIST") != 0){
       list();
 
-    } else if(strcmp(lineBuff, "SHUTDOWN")){
+    } else if(strcmp(lineBuff, "SHUTDOWN") != 0){
       shutdown();
 
     }
@@ -161,6 +161,11 @@ void* readThreadOps(void* threadName){
 }
 
 int main(int argc, char** argv){
+
+  char* thread1ops[100];
+  char* thread2ops[100];
+  char* thread3ops[100];
+  char* thread4ops[100];
 
   string usage = "ssfs <disk file name> thread1ops.txt thread2ops.txt thread3ops.txt thread4ops.txt\n";
 
@@ -175,32 +180,41 @@ int main(int argc, char** argv){
   //store argv[1] as the disk file name
   string diskName = argv[1];
   if(argc >= 3){ //create one thread
-    argv[2]
+    pthread_t opThread1;
+    strcpy(thread1ops, argv[2]);
+    pthread_create(&opThread1, NULL, &readThreadOps, (void*) thread1ops);
   }
   if(argc >= 4){ //create another thread
-    argv[3]
+    pthread_t opThread2;
+    strcpy(thread2ops, argv[3]);
+    pthread_create(&opThread2, NULL, &readThreadOps, (void*) thread2ops);
   }
   if(argc >= 5){ //create another thread
-    argv[4]
+    pthread_t opThread3;
+    strcpy(thread3ops, argv[4]);
+    pthread_create(&opThread3, NULL, &readThreadOps, (void*) thread3ops);
   }
   if(argc == 6){ //create another thread
-    argv[5]
+    pthread_t opThread4;
+    strcpy(thread4ops, argv[5]);
+    pthread_create(&opThread4, NULL, &readThreadOps, (void*) thread4ops);
   }
 
   //Open file for reading and writing
 
   int diskFile = open(diskName);
-	//make disk file if not there, read sizes//int test 
+	//make disk file if not there, read sizes//int test
 	//if( read(diskFile, &num_blocks, 4) < 0){//file does not exist
 	//	sts;
-		
+
 	read(diskFiles, &block_size, 4);
-	free_bitfield = malloc(1024 + blocks/8);
+	free_bitfield = malloc(blocks/8);
 	for(int i = 0; i < max_files; i++){
 		inodes[i].size = -1;
 	}
-	
-	read(diskFile, &free_bitfield,1024 + blocks/8)
+
+
+	read(diskFile, &free_bitfield,blocks/8);
   fclose(diskFile);
   return 0;
 }
