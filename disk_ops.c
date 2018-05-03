@@ -37,12 +37,23 @@ int find_file(char* name){
 	pthread_mutex_unlock(&inode_list);
 	return i;
 }
-int create(char* name){
+void create(char* name){
 	pthread_mutex_lock(&inode_list);//another thread could be creating a file and editting the inode list
-	//fopen to write creates a new file
+
 	inode newFileInode;
 	strcpy(newFileInode.name, name);
+	newFileInode.size = 0;
 
+	if(numFiles == max_files){
+		printf("Error: max number of files reached\n");
+		return;
+	}
+
+	for(int i =0; i < max_files; i++){
+		if(inodes[i].size == -1){
+			inodes[i] == newFileInode;
+		}
+	}
 	pthread_mutex_unlock(&inode_list);
 }
 int import(char* new_name, char* unix_name){}
@@ -105,5 +116,6 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 	free(indirect);
 }
 void list(){
-	}
+	
+}
 void shutdown(){}
