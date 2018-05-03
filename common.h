@@ -7,7 +7,6 @@ typedef struct{
 	block_ptr requested;
 	void* buffer;
 	char read_write;
-	char requestNum[10];
 } disk_request;
 
 /*typedef struct {

@@ -61,25 +61,40 @@ void erase(char* name){
 	else {
 		printf("File %s not found!\n",name);
 	}
-	int curr_block_ind;
 	int* indirect = malloc(block_size);
 	int* double_indirect = malloc(block_size);
 	if(!data || !indirect || !double_indirect){
 		perror("Allocation for read_ssfs failed!: ");
-		free(data);
 		free(indirect);
 		free(double_indirect);
 		exit(-1);
 	}
-	for(int i = 0; i < 12 && i < n.size/block_size; i++){
-		int block_num = inode.direct[i];
+	int i;
+	for(i = 0; i < 12 && i < n.size/block_size; i++){
+		int block_num = indirect[i - 12];
 		free_bitlist[block_num/8] &= ~(1 << (block_num % 8));
-		curr_block_ind++;
 	}
-	if(curr_block_ind == 12){
+	if(i == 12){
 		request(inode.indirect, indirect, 'r');
-
-
+		for(; i < 12 + block_size/sizeof(int); i++){
+			int block_num = inode.direct[i];
+			free_bitlist[block_num/8] &= ~(1 << (block_num % 8));
+		}
+	}
+	if(i == 12 + block_size/sizeof(int)){
+		request(inode.double_indirect, double_indirect, 'r');
+		while(i < 12 + block_size/sizeof(int) + (block_size/sizeof(int)) * (block_size/sizeof(int)) ){
+			request(double_indirect[(i - 12 + block_size/sizeof(int)) / block_size], indirect, 'r');
+			int j = 0;
+			for(; j < block_size; j++){
+				block_num = indirect[j];
+				free_bitlist[block_num/8] &= ~(1 << (block_num % 8));
+			}
+		}
+	}
+	free(indirect);
+	free(double_indirect);
+	inodes[index].size = -1;
 }
 
 
