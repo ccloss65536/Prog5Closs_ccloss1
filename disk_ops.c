@@ -20,7 +20,7 @@ void request(block_ptr block, void* buffer, char read_write){
 	pthread_mutex_unlock(&request_condition_mutex);
 
 	void* doneRequest;
-	while(oldrequest != (int) doneRequest) read(readFd, doneRequest, sizeof(int));
+	while(oldrequest != *((int*)doneRequest)) read(readFd, doneRequest, sizeof(int));
 
 
 }
@@ -76,7 +76,7 @@ void erase(char* name){
 	inode n;
 	if(index > -1){
 		n = inodes[index];
-	else {
+	} else {
 		printf("File %s not found!\n",name);
 	}
 	int* indirect = malloc(block_size);
