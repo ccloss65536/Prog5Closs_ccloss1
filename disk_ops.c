@@ -165,11 +165,6 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 	free(indirect);
 }
 void list(){
-<<<<<<< HEAD
-
-}
-void shutdown(){}
-=======
 	pthread_mutex_lock(&inode_list);
 	for(int i = 0; i < max_files; i++){
 		if(inodes[i].size >= 0){
@@ -177,5 +172,4 @@ void shutdown(){}
 		}
 	}
 	pthread_mutex_unlock(&inode_list);
-
->>>>>>> 2e21da7d838546c2af13b30578a12f5567a25deb
+}
