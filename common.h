@@ -48,7 +48,7 @@ void runner();
 
 //global variables shared between threads
 const int max_requests = 30;
-const int max_files = 256
+const int max_files = 256;
 int num_requests = 0;
 int next_free_request = 0;
 int next_to_do = 0;
@@ -56,7 +56,7 @@ disk_request pending[max_requests];
 inode files[max_files];
 int num_files = 0;
 int block_size;
-int free_space; 
+int free_space;
 pthread_cond_t request_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER; 
 pthread_mutex_t request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -65,4 +65,3 @@ char* free_bitfield; //needs dynamic allocation, b/c its of variable size
 
 
 //free block list type to come
-
