@@ -42,11 +42,12 @@ void request(block_ptr block, void* buffer, char_read_write); //put a disk sched
 
 //global variables shared between threads
 const int max_requests = 30;
+const int max_files = 256
 int num_requests = 0;
 int next_free_request = 0;
 int next_to_do = 0;
 disk_request pending[max_requests];
-inode files[256];
+inode files[max_files];
 int num_files = 0;
 int block_size;
 int free_space; 
