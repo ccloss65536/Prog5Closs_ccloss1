@@ -15,8 +15,6 @@ void request(block_ptr block, void* buffer, char read_write){
 }
 void startup(){
 	int disk_fd = open(name, O_RDWR);
-	lseek(disk_fd, 4);
-	read(disk_fd, &block_size, 4);
 
 	//TODO: load from disk...
 	//TODO: initialize undefined inodes in the array, and set their sizes to -1 to indicate invalidity...
@@ -25,14 +23,15 @@ void startup(){
 int find_file(char* name){
 	pthread_mutex_lock(&inode_list);//We need to lock here because some thread could make a new file while we traverse the list
 	int i;
-	for(int i = 0; i < num_files; i++){
-		if( strcmp(inodes[i].name, name) == 0) break; //strcmp rdeturns zero if the two strings are equal
+	for(int i = 0; i < max_files; i++){
+		if( inodes[i].size >= 0 && strcmp(inodes[i].name, name) == 0) break; //strcmp rdeturns zero if the two strings are equal
 	}
-	if(i == num_files) i = -1; //If not found, return -1
+	if(i == max_files) i = -1; //If not found, return -1
 	pthread_mutex_unlock(&inode_list);
 	return i;
 }
 int create(char* name){
+
 	}
 int import(char* new_name, char* unix_name){}
 void cat(char* name){
@@ -43,7 +42,7 @@ void cat(char* name){
 	}
 	read_ssfs(name, 0, inodes[inode].size);
 }
-void delete(char* name){}
+void erase(char* name){}
 int write_ssfs(char* name, char input, int start_byte, int num_bytes){}
 void read_ssfs(char* name, int start_byte, int num_bytes){
 	int index = find_file(name)

@@ -193,11 +193,19 @@ int main(int argc, char** argv){
   }
 
   //Open file for reading and writing
-  FILE* diskFile;
-  diskFile = fopen(diskName, "r+");
 
-
+  int diskFile = open(diskName);
+	//make disk file if not there, read sizes//int test 
+	//if( read(diskFile, &num_blocks, 4) < 0){//file does not exist
+	//	sts;
+		
+	read(diskFiles, &block_size, 4);
+	free_bitfield = malloc(1024 + blocks/8);
+	for(int i = 0; i < max_files; i++){
+		inodes[i].size = -1;
+	}
+	
+	read(diskFile, &free_bitfield,1024 + blocks/8)
   fclose(diskFile);
-
   return 0;
 }
