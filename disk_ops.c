@@ -9,7 +9,7 @@ void request(block_ptr block, void* buffer, char read_write){
 	while(num_requests >= max_requests) pthread_cond_wait(&request_empty, &request_condition_mutex);
 	num_requests++;
 	pending[next_free_request] = {block, buffer, read_write};
-	next_free_request = (next_free_request + 1) % max_requests; 
+	next_free_request = (next_free_request + 1) % max_requests;
 	pthread_cond_signal(&request_fill);
 	pthread_mutex_unlock(&request_condition_mutex);
 }
@@ -31,8 +31,13 @@ int find_file(char* name){
 	return i;
 }
 int create(char* name){
+	pthread_mutex_lock(&inode_list);//another thread could be creating a file and editting the inode list
+	//fopen to write creates a new file
+	inode newFileInode;
+	strcpy(newFileInode.name, name);
 
-	}
+	pthread_mutex_unlock(&inode_list);
+}
 int import(char* new_name, char* unix_name){}
 void cat(char* name){
 	int index = find_file(name)
@@ -72,8 +77,8 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 	if(curr_block_ind == 12){//the 0th through 11th blocks are direct blocks
 		request(file_inode.indirect, indirect, 'r');
 		block_ptr block;
-		for(; curr_block_ind < 12 + ptrs_per_block  && curr_block_ind <= end_block_ind; curr_block_ind++){ 
-		request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'r'); 
+		for(; curr_block_ind < 12 + ptrs_per_block  && curr_block_ind <= end_block_ind; curr_block_ind++){
+		request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'r');
 
 		}
 	}
@@ -87,7 +92,7 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 				curr_block_ind++;
 			}
 		}
-	}	
+	}
 	write(stdout,data + start_byte, num_bytes);
 	free(data);
 	free(indirect);
@@ -95,5 +100,3 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 void list(){
 	}
 void shutdown(){}
-
-
