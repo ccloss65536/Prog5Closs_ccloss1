@@ -7,6 +7,7 @@ typedef struct{
 	block_ptr requested;
 	void* buffer;
 	char read_write;
+	char requestNum[10];
 } disk_request;
 
 /*typedef struct {
@@ -38,6 +39,12 @@ void shutdown();
 int find_file(char* name); //find the index of the inode of the file with the given name, or -1 if not found
 void request(block_ptr block, void* buffer, char_read_write); //put a disk schedule request into the buffer
 
+void take_request();
+void write_request();
+void read_request();
+void runner();
+
+
 
 
 //global variables shared between threads
@@ -52,8 +59,7 @@ int num_files = 0;
 int block_size;
 int free_space;
 pthread_cond_t request_empty = PTHREAD_COND_INITIALIZER;
-pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t receive_request_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER; 
 pthread_mutex_t request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t inode_list = PTHREAD_MUTEX_INITIALIZER;
 char* free_bitfield; //needs dynamic allocation, b/c its of variable size
