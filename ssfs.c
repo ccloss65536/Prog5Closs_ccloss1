@@ -195,12 +195,12 @@ int main(int argc, char** argv){
 	//	sts;
 		
 	read(diskFiles, &block_size, 4);
-	free_bitfield = malloc(1024 + blocks/8);
+	free_bitfield = malloc(blocks/8);
 	for(int i = 0; i < max_files; i++){
 		inodes[i].size = -1;
 	}
 	
-	read(diskFile, &free_bitfield,1024 + blocks/8)
+	read(diskFile, &free_bitfield,blocks/8)
   fclose(diskFile);
   return 0;
 }
