@@ -7,7 +7,6 @@ typedef struct{
 	block_ptr requested;
 	void* buffer;
 	char read_write;
-	char requestNum[10];
 } disk_request;
 
 /*typedef struct {
@@ -63,6 +62,7 @@ pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t inode_list = PTHREAD_MUTEX_INITIALIZER;
 char* free_bitfield; //needs dynamic allocation, b/c its of variable size
+int diskFile; //file descriptor
 
 
 //free block list type to come

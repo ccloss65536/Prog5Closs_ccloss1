@@ -13,11 +13,12 @@ void take_request(){
 	if (next_consumed.read_write == 'w') write_request(next_consumed.requested, next_consumed.buffer);
 	if (next_consumed.read_write == 'r') read_request(next_consumed.requested, next_consumed.buffer);
 
+	int oldnext = next_to_do;
 	next_to_do = (next_to_do + 1) % max_requests;
 	num_requests--; 
+	write(writeFd, oldnext, sizeof(int));
 	pthread_cond_signal(&request_fill);
 	pthread_mutex_unlock(&request_condition_mutex);
-	write(writeFd, next_consumed.requestNum, sizeof(next_consumed.requestNum));
 }
 
 void write_request(block_ptr bp, void* buffer){
@@ -31,6 +32,5 @@ void read_request(block_ptr bp, void* buffer){
 }
 
 void runner(){
-	writeFd = open(pipeName, O_WRONLY|O_NONBLOCK);
 	while(true) take_request();
 }
