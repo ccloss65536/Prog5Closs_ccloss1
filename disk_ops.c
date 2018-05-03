@@ -11,9 +11,10 @@ void request(block_ptr block, void* buffer, char read_write){
 	while(num_requests >= max_requests) pthread_cond_wait(&request_empty, &request_condition_mutex);
 	num_requests++;
 
-	pending[next_free_request] = {block, buffer, read_write}; //puts the thread ID into the request, so we can match it when the scheduler handles it
-	next_free_request = (next_free_request + 1) % max_requests;
+	int oldrequest = next_free_request;
 
+	pending[next_free_request] = {block, buffer, read_write}; 
+	next_free_request = (next_free_request + 1) % max_requests; 
 
 	pthread_cond_signal(&request_fill);
 	pthread_mutex_unlock(&request_condition_mutex);
