@@ -206,7 +206,7 @@ int main(int argc, char** argv){
 
   //Open file for reading and writing
 
-  int diskFile = open(diskName);
+  diskFile = open(diskName);
 	//make disk file if not there, read sizes//int test
 	//if( read(diskFile, &num_blocks, 4) < 0){//file does not exist
 	//	sts;
