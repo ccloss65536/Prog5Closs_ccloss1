@@ -35,7 +35,7 @@ void read_ssfs(char* name, int start_byte, int num_bytes);
 void list();
 void shutdown();
 //not command functions
-int find_file(char* name) //find the index of the inode of the file with the given name, or -1 if not found
+int find_file(char* name); //find the index of the inode of the file with the given name, or -1 if not found
 void request(block_ptr block, void* buffer, char_read_write); //put a disk schedule request into the buffer
 
 
@@ -53,6 +53,7 @@ int block_size;
 int free_space; 
 pthread_cond_t request_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t receive_request_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t inode_list = PTHREAD_MUTEX_INITIALIZER;
 
