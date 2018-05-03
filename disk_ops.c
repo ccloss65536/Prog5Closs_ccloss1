@@ -15,9 +15,7 @@ void request(block_ptr block, void* buffer, char read_write){
 }
 void startup(){
 	int disk_fd = open(name, O_RDWR);
-	lseek(disk_fd, 4);
-	read(disk_fd, &block_size, 4);
-	for(int i = 0; i < 
+
 	//TODO: load from disk...
 	//TODO: initialize undefined inodes in the array, and set their sizes to -1 to indicate invalidity...
 	// or switch to linked list format if needed
@@ -44,7 +42,7 @@ void cat(char* name){
 	}
 	read_ssfs(name, 0, inodes[inode].size);
 }
-void delete(char* name){}
+void erase(char* name){}
 int write_ssfs(char* name, char input, int start_byte, int num_bytes){}
 void read_ssfs(char* name, int start_byte, int num_bytes){
 	int index = find_file(name)
