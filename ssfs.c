@@ -45,6 +45,21 @@ void* readThreadOps(void* threadName){
         exit(1);
       }
 
+      FILE* newFile = fopen(newFileName, "r");
+      if(newFile != NULL){
+        //if file opens it already exists so this is an error
+        perror("Error: Could not create file because file already exists.\n");
+        fclose(newFileName);
+        exit(1);
+      } else{
+        //CREATES file for reading and writing
+        newFile = fopen(newFileName, "w+");
+        if(newFile == NULL){
+          perror("Error: Could not create file.\n");
+          exit(1);
+        }
+      }
+
       //create() function from common.h found in disk_ops.c
       //should we lock before calling to the function?
       create(newFileName);
