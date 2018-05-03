@@ -11,10 +11,9 @@ void request(block_ptr block, void* buffer, char read_write){
 	while(num_requests >= max_requests) pthread_cond_wait(&request_empty, &request_condition_mutex);
 	num_requests++;
 
-	int oldrequest = next_free_request;
+	pending[next_free_request] = {block, buffer, read_write}; //puts the thread ID into the request, so we can match it when the scheduler handles it
+	next_free_request = (next_free_request + 1) % max_requests;
 
-	pending[next_free_request] = {block, buffer, read_write}; 
-	next_free_request = (next_free_request + 1) % max_requests; 
 
 	pthread_cond_signal(&request_fill);
 	pthread_mutex_unlock(&request_condition_mutex);
@@ -41,14 +40,27 @@ int find_file(char* name){
 	pthread_mutex_unlock(&inode_list);
 	return i;
 }
-int create(char* name){
+
+void create(char* name){
 	pthread_mutex_lock(&inode_list);//another thread could be creating a file and editting the inode list
-	//fopen to write creates a new file
+
 	inode newFileInode;
 	strcpy(newFileInode.name, name);
+	newFileInode.size = 0;
 
+	if(numFiles == max_files){
+		printf("Error: max number of files reached\n");
+		return;
+	}
+
+	for(int i =0; i < max_files; i++){
+		if(inodes[i].size == -1){
+			inodes[i] == newFileInode;
+		}
+	}
 	pthread_mutex_unlock(&inode_list);
 }
+
 int import(char* new_name, char* unix_name){}
 void cat(char* name){
 	int index = find_file(name)
@@ -58,7 +70,51 @@ void cat(char* name){
 	}
 	read_ssfs(name, 0, inodes[inode].size);
 }
-void erase(char* name){}
+void erase(char* name){
+	int index = find_file(name);
+	inode n;
+	if(index > -1){
+		n = inodes[index];
+	else {
+		printf("File %s not found!\n",name);
+	}
+	int* indirect = malloc(block_size);
+	int* double_indirect = malloc(block_size);
+	if(!data || !indirect || !double_indirect){
+		perror("Allocation for read_ssfs failed!: ");
+		free(indirect);
+		free(double_indirect);
+		exit(-1);
+	}
+	int i;
+	for(i = 0; i < 12 && i < n.size/block_size; i++){
+		int block_num = indirect[i - 12];
+		free_bitlist[block_num/8] &= ~(1 << (block_num % 8));
+	}
+	if(i == 12){
+		request(inode.indirect, indirect, 'r');
+		for(; i < 12 + block_size/sizeof(int); i++){
+			int block_num = inode.direct[i];
+			free_bitlist[block_num/8] &= ~(1 << (block_num % 8));
+		}
+	}
+	if(i == 12 + block_size/sizeof(int)){
+		request(inode.double_indirect, double_indirect, 'r');
+		while(i < 12 + block_size/sizeof(int) + (block_size/sizeof(int)) * (block_size/sizeof(int)) ){
+			request(double_indirect[(i - 12 + block_size/sizeof(int)) / block_size], indirect, 'r');
+			int j = 0;
+			for(; j < block_size; j++){
+				block_num = indirect[j];
+				free_bitlist[block_num/8] &= ~(1 << (block_num % 8));
+			}
+		}
+	}
+	free(indirect);
+	free(double_indirect);
+	inodes[index].size = -1;
+}
+
+
 int write_ssfs(char* name, char input, int start_byte, int num_bytes){}
 void read_ssfs(char* name, int start_byte, int num_bytes){
 	int index = find_file(name)
@@ -109,5 +165,17 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 	free(indirect);
 }
 void list(){
-	}
+<<<<<<< HEAD
+
+}
 void shutdown(){}
+=======
+	pthread_mutex_lock(&inode_list);
+	for(int i = 0; i < max_files; i++){
+		if(inodes[i].size >= 0){
+			printf("Name: %d Size: %d",inodes[i].name,inodes[i].size);
+		}
+	}
+	pthread_mutex_unlock(&inode_list);
+
+>>>>>>> 2e21da7d838546c2af13b30578a12f5567a25deb
