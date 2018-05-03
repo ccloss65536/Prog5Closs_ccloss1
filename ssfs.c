@@ -41,24 +41,19 @@ void* readThreadOps(void* threadName){
       //of the line buffer
       char* newFileName = strstr(lineBuff, " ");
       if(newFileName == NULL){
+        //makes sure op was called properly formatted
         perror("Error: Wrong format for CREATE instruction\n");
         exit(1);
       }
 
-      FILE* newFile = fopen(newFileName, "r");
-      if(newFile != NULL){
-        //if file opens it already exists so this is an error
+      //makes sure file does not exist
+      //-1 when file does not exist
+      if(find_file(newFileName) != -1){
         perror("Error: Could not create file because file already exists.\n");
-        fclose(newFileName);
         exit(1);
-      } else{
-        //CREATES file for reading and writing
-        newFile = fopen(newFileName, "w+");
-        if(newFile == NULL){
-          perror("Error: Could not create file.\n");
-          exit(1);
-        }
       }
+      //if it reaches this point then the file is not on disk so create it
+
 
       //create() function from common.h found in disk_ops.c
       //should we lock before calling to the function?
@@ -224,6 +219,7 @@ int main(int argc, char** argv){
 
 
 	read(diskFile, &free_bitfield,blocks/8);
+
   fclose(diskFile);
 
   unlink("/tmp/diskpipe");
