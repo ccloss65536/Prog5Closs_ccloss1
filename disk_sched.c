@@ -5,15 +5,8 @@
 void take_request(){
 	pthread_mutex_lock(&request_condition_mutex);
 	while(num_requests <= 0) pthread_cond_wait(&request_fill, &request_condition_mutex);
-		
-		pthread_mutex_lock(&receive_request_mutex);
 
 		next_consumed = buffer[next_to_do]; 
-		next_to_do = (next_to_do + 1) % max_requests;
-		num_requests--;
-		if(num_requests +1 >= max_requests) pthread_cond_signal(&request_empty);
-
-		pthread_mutex_unlock(&receive_request_mutex);
 
 		if (next_consumed.read_write == 'w') write_request(next_consumed.requested, next_consumed.buffer);
 		if (next_consumed.read_write == 'r') read_request(next_consumed.requested, next_consumed.buffer);
