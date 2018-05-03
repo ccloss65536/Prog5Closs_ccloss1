@@ -51,8 +51,7 @@ int num_files = 0;
 int block_size;
 int free_space; 
 pthread_cond_t request_empty = PTHREAD_COND_INITIALIZER;
-pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t receive_request_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER; 
 pthread_mutex_t request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t inode_list = PTHREAD_MUTEX_INITIALIZER;
 
