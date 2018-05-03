@@ -177,6 +177,15 @@ int main(int argc, char** argv){
     exit(1);
   }
 
+  char pipeName[] = "/tmp/diskpipe";
+  int ret_val = mkfifo(pipeName, 0666);
+  if (ret_val == -1) {
+    perror("Error creating the named pipe1");
+  }
+
+  pthread_t schedThread;
+  pthread_create(&schedThread, NULL, &runner, NULL);
+
   //store argv[1] as the disk file name
   string diskName = argv[1];
   if(argc >= 3){ //create one thread
@@ -216,5 +225,13 @@ int main(int argc, char** argv){
 
 	read(diskFile, &free_bitfield,blocks/8);
   fclose(diskFile);
+
+  unlink("/tmp/diskpipe");
+
+  pthread_join(opThread1, NULL);
+  pthread_join(opThread2, NULL);
+  pthread_join(opThread3, NULL);
+  pthread_join(opThread4, NULL);
+  pthread_join(schedThread, NULL);
   return 0;
 }

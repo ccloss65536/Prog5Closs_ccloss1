@@ -2,16 +2,27 @@
 #include <pthread.h>
 #include "common.h"
 
+int readFd = open("/tmp/diskpipe", O_RDONLY|O_NONBLOCK);
+int requestCounter = 0;
 
 //Puts a request for the disk scheduler into the array
 void request(block_ptr block, void* buffer, char read_write){
 	pthread_mutex_lock(&request_condition_mutex);
 	while(num_requests >= max_requests) pthread_cond_wait(&request_empty, &request_condition_mutex);
 	num_requests++;
-	pending[next_free_request] = {block, buffer, read_write};
+
+	//MUST ADD IDENTIFIERS TO EVERY REQUEST WHEN THEY HAPPEN
+	char rN[10];
+	//rN[0] = a, b, c, or d, depending on which thread calls it
+	//rN[1-9] = requestCounter++;
+
+	pending[next_free_request] = {block, buffer, read_write, rN}; //puts the thread ID into the request, so we can match it when the scheduler handles it
 	next_free_request = (next_free_request + 1) % max_requests; 
 	pthread_cond_signal(&request_fill);
 	pthread_mutex_unlock(&request_condition_mutex);
+	char buffer[10];
+	while(buffer != rN) read(readFd, buffer, sizeof(rN));
+
 }
 void startup(){
 	int disk_fd = open(name, O_RDWR);
