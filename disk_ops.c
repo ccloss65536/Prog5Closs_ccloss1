@@ -126,6 +126,7 @@ void erase(char* name){
 		exit(-1);
 	}
 	int i;
+	pthread_mutex_lock(&free_block_list);
 	for(i = 0; i < 12 && i < n.size/block_size; i++){
 		int block_num = indirect[i - 12];
 		free_bitfield[block_num/8] &= ~(1 << (block_num % 8));
@@ -148,15 +149,18 @@ void erase(char* name){
 			}
 		}
 	}
+	pthread_mutex_unlock(&free_block_list);
 	free(indirect);
 	free(double_indirect);
 	inodes[index].size = -1;
 }
 
 
-int write_ssfs(char* name, char input, int start_byte, int num_bytes){
-	char* data = malloc( (num_bytes + 1) / block_size * block_size);  //not an exact ceil, but memory is cheap and floatng point ops are not
+
+int write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buffer){
+	char* data = (buffer)?buffer:malloc( (num_bytes + 1) / block_size * block_size);  //not an exact ceil, but memory is cheap and floatng point ops are not
 	int index = find_file(name);
+
 	if(index < 0) {
 		printf("File \"%s\" not found!\n",name);
 		return -1;
@@ -165,7 +169,8 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes){
 	inode file_inode = inodes[index];
 
 	int i;
-	for(i = 0; i < num_bytes; i++) data[i] = input;
+	if(!buffer){
+		for(i = 0; i < num_bytes; i++) data[i] = input;
 	int* indirect = malloc(block_size);
 	int* double_indirect = malloc(block_size);
 	if(!data || !indirect || !double_indirect){
@@ -189,8 +194,26 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes){
 		}
 		request(inodes[index].indirect, indirect, 'w');
 	}
-	else{
+	if(old_end_block >= 12 + ptrs_per_block){
 		request(inodes[index].double_indirect, double_indirect, 'r');
+		int new_dbl_end_blk = (new_end_block - 12 - ptrs_per_block)/block_size/block_size;
+		int old_dbl_end_blk = (old_end_block - 12 - ptrs_per_block)/block_size/block_size;
+		int k = old_dbl_end_blk;
+		for(;k < new_dbl_end_blk; k++){
+			double_indirect[k] = find_free_block();
+		}
+		request(inodes[index].double_indirect, double_indirect, 'w');
+		while(old_dbl_block < new_dbl_block){
+			int m;
+			for(m = 0; m < ptrs_per_block && old_end_block < new_end_block; m++){
+				old_end_block++;
+				indirect[m] = find_free_block();
+			}
+			request(double_indirect[old_dbl_end_blk], indirect, 'w');
+			old_dbl_end_blk++;
+		}
+
+	}
 
 
 
@@ -265,7 +288,7 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 		while(curr_block_ind < indirect_end_block + ptrs_per_block*ptrs_per_block){
 			request(double_indirect[(curr_block_ind - indirect_end_block) / block_size], indirect, 'r');
 			for(int i = 0; i < block_size; i++){
-				request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'r'); \
+				request(indirect[(curr_block_ind - 12) % ptrs_per_block], data + curr_block_ind*block_size, 'r'); \
 				curr_block_ind++;
 			}
 		}

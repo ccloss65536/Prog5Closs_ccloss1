@@ -47,8 +47,8 @@ void* runner();
 
 
 //global variables shared between threads
-const int max_requests = 30;
-const int max_files = 256;
+#define max_requests (30)
+#define max_files (256)
 int num_requests = 0;
 int next_free_request = 0;
 int next_to_do = 0;
