@@ -26,8 +26,8 @@ typedef struct {
 } inode;
 
 //functions
-int create(char* name);
-int import(char* new_name, char* unix_name);
+void create(char* name);
+void import(char* new_name, char* unix_name);
 void cat(char* name);
 void erase(char* name);
 int write_ssfs(char* name, char input, int start_byte, int num_bytes);
@@ -53,7 +53,7 @@ int num_requests = 0;
 int next_free_request = 0;
 int next_to_do = 0;
 disk_request pending[max_requests];
-inode files[max_files];
+inode inodes[max_files];
 int num_files = 0;
 int block_size;
 int free_space;
