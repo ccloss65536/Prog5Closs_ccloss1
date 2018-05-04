@@ -220,16 +220,22 @@ int main(int argc, char** argv){
 
   //Open file for reading and writing
 
+  diskFile = open(diskName, O_RDWR);
 	//make disk file if not there, read sizes//int test
 	//if( read(diskFile, &num_blocks, 4) < 0){//file does not exist
 	//	sts;
 
+  read(diskFile, &num_blocks, 4);
 	read(diskFile, &block_size, 4);
 	free_bitfield = malloc(num_blocks/8);
 	for(int i = 0; i < max_files; i++){
       files[i].size = -1;
 	}
 
+
+	read(diskFile, &free_bitfield,num_blocks/8);
+
+  close(diskFile);
 
   unlink("/tmp/diskpipe");
 

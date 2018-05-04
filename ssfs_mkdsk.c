@@ -26,7 +26,7 @@ int main(int argc, char** argv){
 		fprintf(stderr,"Usage: ssfs_mkdsk num_blocks block_size name(optional)\n");
 		return 64;
 	}
-	num_blocks = atoi(argv[1]);
+	int blocks = atoi(argv[1]);
 	int block_size = atoi(argv[2]);
 	char* name = argv[3]; //Do we need to support disk names with spaces?
 	if(blocks < MIN_BLOCKS || blocks > MAX_BLOCKS || !is_power2(blocks)){
