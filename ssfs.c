@@ -173,16 +173,19 @@ void* readThreadOps(void* threadName){
 int main(int argc, char** argv){
 	//initialize globals
 
-	num_requests = 0;
-	next_free_request = 0;
-	next_to_do = 0;
-	request_empty = PTHREAD_COND_INITIALIZER;
-	request_fill = PTHREAD_COND_INITIALIZER; 
-	request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
-	inode_list = PTHREAD_MUTEX_INITIALIZER;
-	free_block_list = PTHREAD_MUTEX_INITIALIZER;
-	request_fufilled_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+	int num_requests = 0;
+	int next_free_request = 0;
+	int next_to_do = 0;
+	disk_request pending[max_requests];
+	inode inodes[max_files];
+	pthread_cond_t request_empty = PTHREAD_COND_INITIALIZER;
+	pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER;
+	pthread_mutex_t request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
+	pthread_mutex_t inode_list = PTHREAD_MUTEX_INITIALIZER;
+	pthread_mutex_t free_block_list = PTHREAD_MUTEX_INITIALIZER;
+	pthread_mutex_t request_fufilled_mutex = PTHREAD_MUTEX_INITIALIZER;
+ 
 	int p;
 	for(p = 0; p < max_requests;p++){
 		pthread_cond_init(&(request_fufilled[p]), NULL); //PTHREAD_COND_INITIALIZER can only be used when declaring a variable
@@ -231,6 +234,7 @@ int main(int argc, char** argv){
 	for(int i = 0; i < max_files; i++){
       inodes[i].size = -1;
 	}
+
 	int q = 0;
 	block_ptr block_num;
 	for(;q < max_files; q++){

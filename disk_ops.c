@@ -88,17 +88,25 @@ void import(char* new_name, char* unix_name){
 		perror("Error: Unix file does not exist");
 		exit(1);
 	}
+	//if file does not exist create it
 	if(find_file(new_name) == -1){
 		create(new_name);
-	} else{
-		char* c;
-		int locationInFile = 0;
-		while(read(unixFile, c, 1)){
-			lseek(unixFile, locationInFile, SEEK_CUR);
-
-		}
-
 	}
+
+	//this char array allows us to read a block at a time
+	char fileBuffer[block_size];
+	int i = 0;
+	int bytesRead = read(unixFile, fileBuffer, block_size);
+	while(bytesRead){
+
+		//that way the location is updated based on how much input was taken
+		//if it was a whole block it will add block_size
+		//else it will just add the amount of bytes read
+		write_ssfs(new_name, '', i*block_size, bytesRead, fileBuffer);
+		i++;
+		bytesRead = read(unixFile, fileBuffer, block_size);
+	}
+
 	close(unixFile);
 }
 
