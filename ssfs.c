@@ -184,8 +184,10 @@ int main(int argc, char** argv){
 	pthread_cond_init(&request_fill, NULL);
 	pthread_mutex_init(&request_condition_mutex, NULL); 
 	pthread_mutex_init(&inode_list, NULL);
-	pthread_mutex_init(&free_block_list, NULL);
+	pthread_mutex_init(&free_block_list, NULL);;
 	pthread_mutex_init(&request_fufilled_mutex, NULL);
+	pthread_mutex_init(&request_end_mutex, NULL);
+	pthread_cond_init(&request_end, NULL);
 	int p;
 	for(p = 0; p < max_requests;p++){
 		pthread_cond_init(&(request_fufilled[p]), NULL); //PTHREAD_COND_INITIALIZER can only be used when declaring a variable
