@@ -2,6 +2,9 @@
 #include <pthread.h>
 #include "common.h"
 #include <string.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 int readFd = open("/tmp/diskpipe", O_RDONLY);
 
@@ -11,17 +14,19 @@ void request(block_ptr block, void* buffer, char read_write){
 	while(num_requests >= max_requests) pthread_cond_wait(&request_empty, &request_condition_mutex);
 	num_requests++;
 
-	pending[next_free_request] = {block, buffer, read_write}; //puts the thread ID into the request, so we can match it when the scheduler handles it
+	int oldrequest = next_free_request;
+
+	pending[next_free_request] = {block, buffer, read_write}; 
 	next_free_request = (next_free_request + 1) % max_requests; 
 
 	pthread_cond_signal(&request_fill);
 	pthread_mutex_unlock(&request_condition_mutex);
 
 	void* doneRequest;
-	read(readFd, doneRequest, sizeof(int));
-
+	while(oldrequest != *((int*)doneRequest)) read(readFd, doneRequest, sizeof(int));
 
 }
+
 
 int find_free_block(){
 	pthread_mutex_lock(&free_block_list);
@@ -37,13 +42,7 @@ int find_free_block(){
 	pthread_mutex_unlock(&free_block_list);
 	return free_block;
 }
-void startup(){
-	int disk_fd = open(name, O_RDWR);
 
-	//TODO: load from disk...
-	//TODO: initialize undefined inodes in the array, and set their sizes to -1 to indicate invalidity...
-	// or switch to linked list format if needed
-}
 int find_file(char* name){
 	pthread_mutex_lock(&inode_list);//We need to lock here because some thread could make a new file while we traverse the list
 	int i;
@@ -54,17 +53,49 @@ int find_file(char* name){
 	pthread_mutex_unlock(&inode_list);
 	return i;
 }
-int create(char* name){
 
+void create(char* name){
 	pthread_mutex_lock(&inode_list);//another thread could be creating a file and editting the inode list
-	//fopen to write creates a new file
+
 	inode newFileInode;
 	strcpy(newFileInode.name, name);
+	newFileInode.size = 0;
 
+	if(numFiles == max_files){
+		printf("Error: max number of files reached\n");
+		return;
+	}
+
+	for(int i =0; i < max_files; i++){
+		if(inodes[i].size == -1){
+			inodes[i] == newFileInode;
+			num_files++;
+			break;
+		}
+	}
 	pthread_mutex_unlock(&inode_list);
 }
 
-int import(char* new_name, char* unix_name){}
+int import(char* new_name, char* unix_name){
+	int unixFile = open(unix_name, O_RDONLY);
+	if(unixFile == NULL){
+		perror("Error: Unix file does not exist");
+		exit(1);
+	}
+	if(find_file(new_name) == -1){
+		create(new_name);
+	} else{
+		char* c;
+		int locationInFile = 0;
+		while(read(unixFile, c, 1)){
+			lseek(unixFile, locationInFile, SEEK_CUR);
+
+		}
+
+	}
+	close(unixFile);
+}
+
 void cat(char* name){
 	int index = find_file(name)
 	if(index < 0) {
@@ -78,7 +109,7 @@ void erase(char* name){
 	inode n;
 	if(index > -1){
 		n = inodes[index];
-	else {
+	} else {
 		printf("File %s not found!\n",name);
 	}
 	int* indirect = malloc(block_size);
@@ -234,6 +265,7 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 	free(data);
 	free(indirect);
 }
+
 void list(){
 	pthread_mutex_lock(&inode_list);
 	for(int i = 0; i < max_files; i++){
@@ -242,4 +274,4 @@ void list(){
 		}
 	}
 	pthread_mutex_unlock(&inode_list);
-
+}

@@ -3,6 +3,10 @@
 #include <pthread.h>
 #include <string.h>
 #include "common.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 //CREATE
 // threadOps = fopen(threadName, "r");
@@ -29,6 +33,11 @@ void* readThreadOps(void* threadName){
     perror("Error: Could not open threadOps file\n");
     exit(1);
   }
+
+  char* writeFileName;
+  char* writeChar;
+  char* startByte;
+  char* numBytes;
 
   //after this point the file should be open
 
@@ -104,10 +113,10 @@ void* readThreadOps(void* threadName){
 
 
     } else if(strstr(lineBuff, "WRITE") != NULL){
-      char* writeFileName = strstr(lineBuff, " ");
-      char* writeChar = strstr(writeFileName, " ");
-      char* startByte = strstr(writeChar, " ");
-      char* numBytes = strstr(startByte, " ");
+      writeFileName = strstr(lineBuff, " ");
+      writeChar = strstr(writeFileName, " ");
+      startByte = strstr(writeChar, " ");
+      numBytes = strstr(startByte, " ");
       //changes the spaces for null terminators
 
       if(writeFileName == NULL || writeChar == NULL || startByte == NULL || numBytes == NULL){
@@ -121,7 +130,7 @@ void* readThreadOps(void* threadName){
 
       //write_ssfs() function from common.h found in disk_ops.c
       //should we lock before calling to the function?
-      write_ssfs(writeFileName, writeChar, startByte, numBytes);
+      write_ssfs(writeFileName, writeChar[0], atoi(startByte), atoi(numBytes));
 
 
     } else if(strstr(lineBuff, "READ") != NULL){
@@ -140,29 +149,36 @@ void* readThreadOps(void* threadName){
 
       //write_ssfs() function from common.h found in disk_ops.c
       //should we lock before calling to the function?
-      read_ssfs(writeFileName, writeChar, startByte, numBytes);
+      read_ssfs(writeFileName, atoi(startByte), atoi(numBytes));
 
 
     } else if(strcmp(lineBuff, "LIST") != 0){
       list();
 
     } else if(strcmp(lineBuff, "SHUTDOWN") != 0){
-      shutdown();
+
 
     }
 
   }
 
+  fclose(threadOps);
+
 }
 
 int main(int argc, char** argv){
 
-  char* thread1ops[100];
-  char* thread2ops[100];
-  char* thread3ops[100];
-  char* thread4ops[100];
+  char* thread1ops;
+  char* thread2ops;
+  char* thread3ops;
+  char* thread4ops;
 
-  string usage = "ssfs <disk file name> thread1ops.txt thread2ops.txt thread3ops.txt thread4ops.txt\n";
+  pthread_t opThread1;
+  pthread_t opThread2;
+  pthread_t opThread3;
+  pthread_t opThread4;
+
+  char* usage = "ssfs <disk file name> thread1ops.txt thread2ops.txt thread3ops.txt thread4ops.txt\n";
 
   if(argc > 6){
     printf("Too many arguments\n%s\n", usage);
@@ -178,49 +194,51 @@ int main(int argc, char** argv){
     perror("Error creating the named pipe1");
   }
 
+  int writeFd = open("/tmp/diskpipe", O_WRONLY);
+
   pthread_t schedThread;
   pthread_create(&schedThread, NULL, &runner, NULL);
 
   //store argv[1] as the disk file name
-  string diskName = argv[1];
+  char* diskName = argv[1];
   if(argc >= 3){ //create one thread
-    pthread_t opThread1;
     strcpy(thread1ops, argv[2]);
     pthread_create(&opThread1, NULL, &readThreadOps, (void*) thread1ops);
   }
   if(argc >= 4){ //create another thread
-    pthread_t opThread2;
     strcpy(thread2ops, argv[3]);
     pthread_create(&opThread2, NULL, &readThreadOps, (void*) thread2ops);
   }
   if(argc >= 5){ //create another thread
-    pthread_t opThread3;
     strcpy(thread3ops, argv[4]);
     pthread_create(&opThread3, NULL, &readThreadOps, (void*) thread3ops);
   }
   if(argc == 6){ //create another thread
-    pthread_t opThread4;
     strcpy(thread4ops, argv[5]);
     pthread_create(&opThread4, NULL, &readThreadOps, (void*) thread4ops);
   }
 
   //Open file for reading and writing
 
-  int diskFile = open(diskName);
+
+  diskFile = open(diskName, O_RDWR);
+
+
 	//make disk file if not there, read sizes//int test
 	//if( read(diskFile, &num_blocks, 4) < 0){//file does not exist
 	//	sts;
 
-	read(diskFiles, &block_size, 4);
-	free_bitfield = malloc(blocks/8);
+  read(diskFile, &num_blocks, 4);
+	read(diskFile, &block_size, 4);
+	free_bitfield = malloc(num_blocks/8);
 	for(int i = 0; i < max_files; i++){
-		inodes[i].size = -1;
+      files[i].size = -1;
 	}
 
 
-	read(diskFile, &free_bitfield,blocks/8);
+	read(diskFile, &free_bitfield,num_blocks/8);
 
-  fclose(diskFile);
+  close(diskFile);
 
   unlink("/tmp/diskpipe");
 
