@@ -194,7 +194,8 @@ int main(int argc, char** argv){
     perror("Error creating the named pipe1");
   }
 
-  int writeFd = open("/tmp/diskpipe", O_WRONLY);
+  writeFd = open("/tmp/diskpipe", O_WRONLY);
+  readFd = open("/tmp/diskpipe", O_RDONLY);
 
   pthread_t schedThread;
   pthread_create(&schedThread, NULL, &runner, NULL);
@@ -232,7 +233,7 @@ int main(int argc, char** argv){
 	read(diskFile, &block_size, 4);
 	free_bitfield = malloc(num_blocks/8);
 	for(int i = 0; i < max_files; i++){
-      files[i].size = -1;
+      inodes[i].size = -1;
 	}
 
 

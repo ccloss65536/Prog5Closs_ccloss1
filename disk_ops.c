@@ -5,8 +5,8 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
-int readFd = open("/tmp/diskpipe", O_RDONLY);
+#include <stdio.h>
+#include <unistd.h>
 
 //Puts a request for the disk scheduler into the array
 void request(block_ptr block, void* buffer, char read_write){
@@ -16,7 +16,12 @@ void request(block_ptr block, void* buffer, char read_write){
 
 	int oldrequest = next_free_request;
 
-	pending[next_free_request] = {block, buffer, read_write}; 
+	disk_request newRequest;
+	newRequest.requested = block;
+	newRequest.buffer = buffer;
+	newRequest.read_write = read_write;
+
+	pending[next_free_request] = newRequest;
 	next_free_request = (next_free_request + 1) % max_requests; 
 
 	pthread_cond_signal(&request_fill);
@@ -32,13 +37,13 @@ int find_free_block(){
 	pthread_mutex_lock(&free_block_list);
 	int i;
 	int free_block;
-	for(i = 0; i < blocks/8; i++){
-		if((free_bitfield[blocks/8] & (1 << (i % 8))) == 0){
+	for(i = 0; i < num_blocks/8; i++){
+		if((free_bitfield[num_blocks/8] & (1 << (i % 8))) == 0){
 			free_block = i;
-			free_bitfield[blocks/8] |= (1 << (i % 8));
+			free_bitfield[num_blocks/8] |= (1 << (i % 8));
 		}
 	}
-	if(i == blocks/8) free_block = -1;
+	if(i == num_blocks/8) free_block = -1;
 	pthread_mutex_unlock(&free_block_list);
 	return free_block;
 }
@@ -61,14 +66,14 @@ void create(char* name){
 	strcpy(newFileInode.name, name);
 	newFileInode.size = 0;
 
-	if(numFiles == max_files){
+	if(num_files == max_files){
 		printf("Error: max number of files reached\n");
 		return;
 	}
 
 	for(int i =0; i < max_files; i++){
 		if(inodes[i].size == -1){
-			inodes[i] == newFileInode;
+			inodes[i] = newFileInode;
 			num_files++;
 			break;
 		}
@@ -76,9 +81,9 @@ void create(char* name){
 	pthread_mutex_unlock(&inode_list);
 }
 
-int import(char* new_name, char* unix_name){
+void import(char* new_name, char* unix_name){
 	int unixFile = open(unix_name, O_RDONLY);
-	if(unixFile == NULL){
+	if(unixFile == -1){
 		perror("Error: Unix file does not exist");
 		exit(1);
 	}
@@ -97,12 +102,12 @@ int import(char* new_name, char* unix_name){
 }
 
 void cat(char* name){
-	int index = find_file(name)
+	int index = find_file(name);
 	if(index < 0) {
 		printf("File \"%s\" not found!\n",name);
 		return;
 	}
-	read_ssfs(name, 0, inodes[inode].size);
+	read_ssfs(name, 0, inodes[index].size);
 }
 void erase(char* name){
 	int index = find_file(name);
@@ -114,7 +119,7 @@ void erase(char* name){
 	}
 	int* indirect = malloc(block_size);
 	int* double_indirect = malloc(block_size);
-	if(!data || !indirect || !double_indirect){
+	if(!indirect || !double_indirect){
 		perror("Allocation for read_ssfs failed!: ");
 		free(indirect);
 		free(double_indirect);
@@ -124,23 +129,23 @@ void erase(char* name){
 	pthread_mutex_lock(&free_block_list);
 	for(i = 0; i < 12 && i < n.size/block_size; i++){
 		int block_num = indirect[i - 12];
-		free_bitlist[block_num/8] &= ~(1 << (block_num % 8));
+		free_bitfield[block_num/8] &= ~(1 << (block_num % 8));
 	}
 	if(i == 12){
-		request(inode.indirect, indirect, 'r');
+		request(n.indirect, indirect, 'r');
 		for(; i < 12 + block_size/sizeof(int); i++){
-			int block_num = inode.direct[i];
-			free_bitlist[block_num/8] &= ~(1 << (block_num % 8));
+			int block_num = n.direct[i];
+			free_bitfield[block_num/8] &= ~(1 << (block_num % 8));
 		}
 	}
 	if(i == 12 + block_size/sizeof(int)){
-		request(inode.double_indirect, double_indirect, 'r');
+		request(n.double_indirect, double_indirect, 'r');
 		while(i < 12 + block_size/sizeof(int) + (block_size/sizeof(int)) * (block_size/sizeof(int)) ){
 			request(double_indirect[(i - 12 + block_size/sizeof(int)) / block_size], indirect, 'r');
 			int j = 0;
 			for(; j < block_size; j++){
-				block_num = indirect[j];
-				free_bitlist[block_num/8] &= ~(1 << (block_num % 8));
+				int block_num = indirect[j];
+				free_bitfield[block_num/8] &= ~(1 << (block_num % 8));
 			}
 		}
 	}
@@ -151,15 +156,22 @@ void erase(char* name){
 }
 
 
+
 int write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buffer){
-	int index = find_file(name)
+	char* data = (buffer)?buffer:malloc( (num_bytes + 1) / block_size * block_size);  //not an exact ceil, but memory is cheap and floatng point ops are not
+	int index = find_file(name);
+
 	if(index < 0) {
 		printf("File \"%s\" not found!\n",name);
-		return;
+		return -1;
 	}
-	char* data = malloc( (num_bytes + 1) / block_size * block_size); //not an exact ceil, but memory is cheap and floatng point ops are not
+
+	inode file_inode = inodes[index];
+
 	int i;
-	for(i = 0; i < num_bytes; i++) data[i] = input;
+	if(!buffer){
+		for(i = 0; i < num_bytes; i++) data[i] = input;
+	}
 	int* indirect = malloc(block_size);
 	int* double_indirect = malloc(block_size);
 	if(!data || !indirect || !double_indirect){
@@ -172,7 +184,7 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buff
 	 //allocate new blocks if necessary
 	int ptrs_per_block = block_size/sizeof(block_ptr);
 	int old_end_block = file_inode.size / block_size;
-	int new_end_block = (start_byte + num_bytes) / block_size
+	int new_end_block = (start_byte + num_bytes) / block_size;
 	for(;old_end_block < new_end_block && old_end_block < 12; old_end_block++){
 		inodes[index].direct[old_end_block] = find_free_block();
 	}
@@ -224,13 +236,14 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buff
 			}
 		}
 	}
-	write(stdout,data + start_byte, num_bytes);
+	write(1 ,data + start_byte, num_bytes);
 	free(data);
 	free(indirect);
 
 	}
+}
 void read_ssfs(char* name, int start_byte, int num_bytes){
-	int index = find_file(name)
+	int index = find_file(name);
 	if(index < 0) {
 		printf("File \"%s\" not found!\n",name);
 		return;
@@ -250,7 +263,7 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 	int curr_block_ind = start_block_ind;//keep track of which block we need to read from
 	int end_block_ind = (start_byte + num_bytes)/block_size;
 	for(; curr_block_ind < 12 && curr_block_ind <= end_block_ind; curr_block_ind++){
-		request(file_inode.direct[i], data + curr_block_ind*block_size, 'r');
+		request(file_inode.direct[curr_block_ind], data + curr_block_ind*block_size, 'r');
 	}
 	int ptrs_per_block = block_size/sizeof(block_ptr);
 
@@ -273,7 +286,7 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 			}
 		}
 	}
-	write(stdout,data + start_byte, num_bytes);
+	write(1 ,data + start_byte, num_bytes);
 	free(data);
 	free(indirect);
 }
@@ -282,7 +295,7 @@ void list(){
 	pthread_mutex_lock(&inode_list);
 	for(int i = 0; i < max_files; i++){
 		if(inodes[i].size >= 0){
-			printf("Name: %d Size: %d",inodes[i].name,inodes[i].size);
+			printf("Name: %s Size: %d\n",inodes[i].name,inodes[i].size);
 		}
 	}
 	pthread_mutex_unlock(&inode_list);
