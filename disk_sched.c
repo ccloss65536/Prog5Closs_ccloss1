@@ -5,11 +5,13 @@
 #include <stdio.h>
 #include <fcntl.h>
 
-void take_request(){
+int take_request(){
 	pthread_mutex_lock(&request_condition_mutex);
 	while(num_requests <= 0) pthread_cond_wait(&request_fill, &request_condition_mutex);
 
-	disk_request next_consumed = pending[next_to_do]; 
+	disk_request next_consumed = pending[next_to_do];
+
+	if (next_consumed.read_write == 's') return 0; 
 
 	if (next_consumed.read_write == 'w') write_request(next_consumed.requested, next_consumed.buffer);
 	if (next_consumed.read_write == 'r') read_request(next_consumed.requested, next_consumed.buffer);
@@ -22,6 +24,7 @@ void take_request(){
 	pthread_cond_signal(&request_fill);
 	pthread_cond_signal(&request_fufilled[oldnext]);
 	pthread_mutex_unlock(&request_condition_mutex);
+	return 1;
 }
 
 void write_request(block_ptr bp, void* buffer){
@@ -35,6 +38,7 @@ void read_request(block_ptr bp, void* buffer){
 }
 
 void* runner(){
-	while(1) take_request();
+	while(take_request());
+	pthread_cond_signal(&pthread_end);	
 	pthread_exit(0);
 }
