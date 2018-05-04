@@ -156,6 +156,9 @@ void* readThreadOps(void* threadName){
       list();
 
     } else if(strcmp(lineBuff, "SHUTDOWN") != 0){
+      shutdown();
+      fclose(threadOps);
+      pthread_exit(0);
       //shut down after queue of requests is finished
       //exit this process
 
@@ -166,7 +169,7 @@ void* readThreadOps(void* threadName){
   }
 
   fclose(threadOps);
-	return NULL;
+  pthread_exit(0);
 
 
 }
@@ -261,12 +264,19 @@ int main(int argc, char** argv){
     pthread_create(&opThread4, NULL, &readThreadOps, (void*) thread4ops);
   }
   close(diskFile);
+
+  pthread_mutex_lock(&request_end_mutex);
+  pthread_cond_wait(&request_end, &request_end_mutex);
+
   pthread_join(opThread1, NULL);
 	if(argc >= 4){ //only join a thread if we created it earlier{
+    pthread_cancel(opThread2);
   	pthread_join(opThread2, NULL);
 		if(argc>= 5){
+      pthread_cancel(opThread3);
 			pthread_join(opThread3, NULL);
 			if(argc >= 6){
+        pthread_cancel(opThread4);
   			pthread_join(opThread4, NULL);
 			}
 		}
