@@ -59,7 +59,7 @@ int main(int argc, char** argv){
 		//TODO: fix free block list
 	}
 
-	for(int i = 0; i < total_size - 4 - 1024 - ceil((1032 + blocks/8.0) / block_size); i++){
+	for(int i = 0; i < total_size - 8 - 1024 - blocks/8); i++){
 				write(disk_fd,"\7",1);
 	}
 
