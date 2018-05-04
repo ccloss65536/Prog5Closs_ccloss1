@@ -221,7 +221,7 @@ int main(int argc, char** argv){
   //Open file for reading and writing
 
 
-  diskFile = open(diskName);
+  diskFile = open(diskName, O_RDWR);
 
 
 	//make disk file if not there, read sizes//int test
