@@ -11,8 +11,10 @@ int take_request(){
 
 	disk_request next_consumed = pending[next_to_do];
 
-	if (next_consumed.read_write == 's') return 0; 
-
+	if (next_consumed.read_write == 's'){
+		pthread_mutex_unlock(&request_condition_mutex);
+		return 0; 
+	}
 	if (next_consumed.read_write == 'w') write_request(next_consumed.requested, next_consumed.buffer);
 	if (next_consumed.read_write == 'r') read_request(next_consumed.requested, next_consumed.buffer);
 
@@ -23,7 +25,6 @@ int take_request(){
 	write(writeFd, &oldnext, sizeof(int));
 	pthread_cond_signal(&request_fill);
 	pthread_cond_signal(&request_fufilled[oldnext]);
-	pthread_mutex_unlock(&request_condition_mutex);
 	return 1;
 }
 
