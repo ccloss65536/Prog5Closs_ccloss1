@@ -130,7 +130,7 @@ void* readThreadOps(void* threadName){
 
       //write_ssfs() function from common.h found in disk_ops.c
       //should we lock before calling to the function?
-      write_ssfs(writeFileName, writeChar[0], atoi(startByte), atoi(numBytes));
+      write_ssfs(writeFileName, writeChar[0], atoi(startByte), atoi(numBytes), NULL);
 
 
     } else if(strstr(lineBuff, "READ") != NULL){

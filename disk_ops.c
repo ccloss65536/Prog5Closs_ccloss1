@@ -171,7 +171,6 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buff
 	int i;
 	if(!buffer){
 		for(i = 0; i < num_bytes; i++) data[i] = input;
-	}
 	int* indirect = malloc(block_size);
 	int* double_indirect = malloc(block_size);
 	if(!data || !indirect || !double_indirect){
@@ -195,7 +194,7 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buff
 		}
 		request(inodes[index].indirect, indirect, 'w');
 	}
-	if(old_end_block == 12 + ptrs_per_block){
+	if(old_end_block >= 12 + ptrs_per_block){
 		request(inodes[index].double_indirect, double_indirect, 'r');
 		int new_dbl_end_blk = (new_end_block - 12 - ptrs_per_block)/block_size/block_size;
 		int old_dbl_end_blk = (old_end_block - 12 - ptrs_per_block)/block_size/block_size;
@@ -204,7 +203,15 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buff
 			double_indirect[k] = find_free_block();
 		}
 		request(inodes[index].double_indirect, double_indirect, 'w');
-
+		while(old_dbl_block < new_dbl_block){
+			int m;
+			for(m = 0; m < ptrs_per_block && old_end_block < new_end_block; m++){
+				old_end_block++;
+				indirect[m] = find_free_block();
+			}
+			request(double_indirect[old_dbl_end_blk], indirect, 'w');
+			old_dbl_end_blk++;
+		}
 
 	}
 
@@ -281,7 +288,7 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 		while(curr_block_ind < indirect_end_block + ptrs_per_block*ptrs_per_block){
 			request(double_indirect[(curr_block_ind - indirect_end_block) / block_size], indirect, 'r');
 			for(int i = 0; i < block_size; i++){
-				request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'r'); \
+				request(indirect[(curr_block_ind - 12) % ptrs_per_block], data + curr_block_ind*block_size, 'r'); \
 				curr_block_ind++;
 			}
 		}
