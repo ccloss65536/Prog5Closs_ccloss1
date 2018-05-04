@@ -20,6 +20,7 @@ void take_request(){
 	num_requests--; 
 	write(writeFd, &oldnext, sizeof(int));
 	pthread_cond_signal(&request_fill);
+	pthread_cond_signal(&request_fufilled[oldnext]);
 	pthread_mutex_unlock(&request_condition_mutex);
 }
 
