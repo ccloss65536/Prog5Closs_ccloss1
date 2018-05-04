@@ -49,7 +49,7 @@ void* runner();
 //global variables shared between threads
 #define max_requests (30)
 #define max_files (256)
-int num_requests; //the extern variables are initalized in ssfs.c at sartup, suince initializiing them here results in linker errors
+int num_requests; //variables now nitialized in ssfs.c
 int next_free_request;
 int next_to_do;
 disk_request pending[max_requests];
