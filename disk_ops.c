@@ -27,8 +27,9 @@ void request(block_ptr block, void* buffer, char read_write){
 	pthread_cond_signal(&request_fill);
 	pthread_mutex_unlock(&request_condition_mutex);
 
-	void* doneRequest;
-	while(oldrequest != *((int*)doneRequest)) read(readFd, doneRequest, sizeof(int));
+	pthread_mutex_lock(&request_fufilled_mutex);
+	pthread_cond_wait(&request_fufilled[oldrequest], &request_fufilled_mutex);
+	pthread_mutex_unlock(&request_fufilled_mutex);
 
 }
 
@@ -50,8 +51,8 @@ int find_free_block(){
 
 int find_file(char* name){
 	pthread_mutex_lock(&inode_list);//We need to lock here because some thread could make a new file while we traverse the list
-	int i;
-	for(int i = 0; i < max_files; i++){
+	int i = 0;//Please do not change this! if i is initalized in ther for loop, gcc complains that i is uninitalized at the if statement
+	for(; i < max_files; i++){
 		if( inodes[i].size >= 0 && strcmp(inodes[i].name, name) == 0) break; //strcmp rdeturns zero if the two strings are equal
 	}
 	if(i == max_files) i = -1; //If not found, return -1
@@ -127,7 +128,7 @@ void erase(char* name){
 	}
 	unsigned int i;
 	pthread_mutex_lock(&free_block_list);
-	for(i = 0; i < 12 && i < n.size/block_size; i++){
+	for(i = 0; i < 12 && i < (unsigned)n.size/block_size; i++){
 		int block_num = indirect[i - 12];
 		free_bitfield[block_num/8] &= ~(1 << (block_num % 8));
 	}
@@ -157,20 +158,22 @@ void erase(char* name){
 
 
 
-void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buffer){
-	char* data = (buffer)?buffer:malloc( (num_bytes + 1) / block_size * block_size);  //not an exact ceil, but memory is cheap and floatng point ops are not
-	int index = find_file(name);
+void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buffer){	
 
-	if(index < 0) {
+	int index = find_file(name);
+	pthread_mutex_lock(&inode_list);
+	if(index < 0 || start_byte >= inodes[index].size) {
 		printf("File \"%s\" not found!\n",name);
+		pthread_mutex_unlock(&inode_list);
 		return;
 	}
 
-	inode file_inode = inodes[index];
+	char* data = (buffer)?buffer:malloc( (num_bytes + 1) / block_size * block_size);  //not an exact ceil, but memory is cheap and floatng point ops are not
 
 	int i;
 	if(!buffer){
 		for(i = 0; i < num_bytes; i++) data[i] = input;
+	}
 	int* indirect = malloc(block_size);
 	int* double_indirect = malloc(block_size);
 	if(!data || !indirect || !double_indirect){
@@ -178,10 +181,11 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 		free(data);
 		free(indirect);
 		free(double_indirect);
+		pthread_mutex_unlock(&inode_list);
 		exit(-1);
 	}
 	 //allocate new blocks if necessary
-	pthread_mutex_lock(&inode_list);
+	inode file_inode = inodes[index];
 	int ptrs_per_block = block_size/sizeof(block_ptr);
 	int old_end_block = file_inode.size / block_size;
 	int new_end_block = (start_byte + num_bytes) / block_size;
@@ -246,7 +250,6 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 	free(data);
 	free(indirect);
 
-	}
 }
 void read_ssfs(char* name, int start_byte, int num_bytes){
 	int index = find_file(name);
