@@ -121,6 +121,7 @@ void erase(char* name){
 		exit(-1);
 	}
 	int i;
+	pthread_mutex_lock(&free_block_list);
 	for(i = 0; i < 12 && i < n.size/block_size; i++){
 		int block_num = indirect[i - 12];
 		free_bitlist[block_num/8] &= ~(1 << (block_num % 8));
@@ -143,13 +144,14 @@ void erase(char* name){
 			}
 		}
 	}
+	pthread_mutex_unlock(&free_block_list);
 	free(indirect);
 	free(double_indirect);
 	inodes[index].size = -1;
 }
 
 
-int write_ssfs(char* name, char input, int start_byte, int num_bytes){
+int write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buffer){
 	int index = find_file(name)
 	if(index < 0) {
 		printf("File \"%s\" not found!\n",name);
@@ -181,8 +183,18 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes){
 		}
 		request(inodes[index].indirect, indirect, 'w');
 	}
-	else{
+	if(old_end_block == 12 + ptrs_per_block){
 		request(inodes[index].double_indirect, double_indirect, 'r');
+		int new_dbl_end_blk = (new_end_block - 12 - ptrs_per_block)/block_size/block_size;
+		int old_dbl_end_blk = (old_end_block - 12 - ptrs_per_block)/block_size/block_size;
+		int k = old_dbl_end_blk;
+		for(;k < new_dbl_end_blk; k++){
+			double_indirect[k] = find_free_block();
+		}
+		request(inodes[index].double_indirect, double_indirect, 'w');
+
+
+	}
 
 
 
