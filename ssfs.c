@@ -28,7 +28,7 @@ void* readThreadOps(void* threadName){
   //string* operations = {"CREATE","IMPORT","CAT","DELETE","WRITE","READ","LIST","SHUTDOWN"};
   //converts the thread name to a string and opens it for reading
   char* nameOfThread = (char*) threadName;
-  threadOps = fopen(threadName, "r");
+  threadOps = fopen(nameOfThread, "r");
   if(threadOps == NULL){
     perror("Error: Could not open threadOps file\n");
     exit(1);
@@ -130,7 +130,7 @@ void* readThreadOps(void* threadName){
 
       //write_ssfs() function from common.h found in disk_ops.c
       //should we lock before calling to the function?
-      write_ssfs(writeFileName, writeChar[0], atoi(startByte), atoi(numBytes));
+      write_ssfs(writeFileName, writeChar[0], atoi(startByte), atoi(numBytes), NULL);
 
 
     } else if(strstr(lineBuff, "READ") != NULL){
@@ -156,6 +156,8 @@ void* readThreadOps(void* threadName){
       list();
 
     } else if(strcmp(lineBuff, "SHUTDOWN") != 0){
+      //shut down after queue of requests is finished
+      //exit this process
 
 
     }
@@ -167,6 +169,18 @@ void* readThreadOps(void* threadName){
 }
 
 int main(int argc, char** argv){
+	//initialize globals
+
+	int num_requests = 0;
+	int next_free_request = 0;
+	int next_to_do = 0;
+	disk_request pending[max_requests];
+	inode inodes[max_files];
+	pthread_cond_t request_empty = PTHREAD_COND_INITIALIZER;
+	pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER; 
+	pthread_mutex_t request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
+	pthread_mutex_t inode_list = PTHREAD_MUTEX_INITIALIZER;
+	pthread_mutex_t free_block_list = PTHREAD_MUTEX_INITIALIZER;
 
   char* thread1ops;
   char* thread2ops;
@@ -194,7 +208,8 @@ int main(int argc, char** argv){
     perror("Error creating the named pipe1");
   }
 
-  int writeFd = open("/tmp/diskpipe", O_WRONLY);
+  writeFd = open("/tmp/diskpipe", O_WRONLY);
+  readFd = open("/tmp/diskpipe", O_RDONLY);
 
   pthread_t schedThread;
   pthread_create(&schedThread, NULL, &runner, NULL);
@@ -232,7 +247,7 @@ int main(int argc, char** argv){
 	read(diskFile, &block_size, 4);
 	free_bitfield = malloc(num_blocks/8);
 	for(int i = 0; i < max_files; i++){
-      files[i].size = -1;
+      inodes[i].size = -1;
 	}
 
 
