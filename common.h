@@ -61,6 +61,7 @@ pthread_cond_t request_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER; 
 pthread_mutex_t request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t inode_list = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t free_block_list = PTHREAD_MUTEX_INITIALIZER;
 char* free_bitfield; //needs dynamic allocation, b/c its of variable size
 int diskFile; //file descriptor
 
