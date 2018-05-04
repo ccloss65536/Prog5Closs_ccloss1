@@ -34,27 +34,25 @@ void* readThreadOps(void* threadName){
     exit(1);
   }
 
-  char* writeFileName;
-  char* writeChar;
-  char* startByte;
-  char* numBytes;
+  char writeFileName[32];
+  char writeChar;
+  int startByte;
+  int numBytes;
+
+  char commands[32];
 
   //after this point the file should be open
 
   //the function strstr finds a string within another string
   //gets a line from the the threadOps file we opened
-  while(fgets(lineBuff, sizeof(lineBuff), threadOps)){
+  //fgets(lineBuff, sizeof(lineBuff), threadOps)
+  while(fscanf(threadOps, "%s", commands)){
     //checks if the command is create
-    if(strstr(lineBuff, "CREATE") != NULL){
+    if(strcmp(commands, "CREATE") == 0){
       //Get File Name, returns a pointer to right after the space
       //of the line buffer
-      char* newFileName = strstr(lineBuff, " ");
-      if(newFileName == NULL){
-        //makes sure op was called properly formatted
-        perror("Error: Wrong format for CREATE instruction\n");
-        exit(1);
-      }
-
+      char newFileName[32];
+      fscanf(threadOps, " %s", newFileName);
       //makes sure file does not exist
       //-1 when file does not exist
       if(find_file(newFileName) != -1){
@@ -68,17 +66,11 @@ void* readThreadOps(void* threadName){
       //should we lock before calling to the function?
       create(newFileName);
 
-    } else if(strstr(lineBuff, "IMPORT") != NULL){
-      char* importFileName =  strstr(lineBuff, " ");
-      char* unixFileName = strstr(importFileName, " ");
+    } else if(strcmp(commands, "IMPORT") == 0){
+      char importFileName[32];
+      char unixFileName[32];
 
-      if(importFileName == NULL || unixFileName == NULL){
-        perror("Error: Wrong format for IMPORT instruction\n");
-        exit(1);
-      }
-
-      //replaces space witha null terminator
-      strncpy(unixFileName-1, "\0", 1);
+      fscanf(threadOps, " %s %s", importFileName, unixFileName);
       //now both variables contain what they should have
 
       //import() function from common.h found in disk_ops.c
@@ -86,76 +78,53 @@ void* readThreadOps(void* threadName){
       import(importFileName, unixFileName);
 
 
-    } else if(strstr(lineBuff, "CAT") != NULL){
+    } else if(strcmp(commands, "CAT") == 0){
       //gets name of the file
-      char* catFileName = strstr(lineBuff, " ");
-      if(catFileName == NULL){
-        perror("Error: Wrong format for CAT instruction\n");
-        exit(1);
-      }
+      char catFileName[32];
+      fscanf(threadOps, " %s", catFileName);
 
       //cat() function from common.h found in disk_ops.c
       //should we lock before calling to the function?
       cat(catFileName);
 
 
-    } else if(strstr(lineBuff, "DELETE") != NULL){
+    } else if(strcmp(commands, "DELETE") == 0){
       //gets name of file to delete
-      char* deleteFileName = strstr(lineBuff, " ");
-      if(deleteFileName == NULL){
-        perror("Error: Wrong format for DELETE instruction\n");
-        exit(1);
-      }
+      char deleteFileName[32];
+      fscanf(threadOps, " %s", deleteFileName);
 
       //erase() function from common.h found in disk_ops.c
       //should we lock before calling to the function?
       erase(deleteFileName);
 
 
-    } else if(strstr(lineBuff, "WRITE") != NULL){
-      writeFileName = strstr(lineBuff, " ");
-      writeChar = strstr(writeFileName, " ");
-      startByte = strstr(writeChar, " ");
-      numBytes = strstr(startByte, " ");
+    } else if(strcmp(commands, "WRITE") == 0){
       //changes the spaces for null terminators
 
-      if(writeFileName == NULL || writeChar == NULL || startByte == NULL || numBytes == NULL){
-        perror("Error: Wrong format for WRITE instruction\n");
-        exit(1);
-      }
-
-      strncpy(writeChar-1, "\0", 1);
-      strncpy(startByte-1, "\0", 1);
-      strncpy(numBytes-1, "\0", 1);
+      fscanf(threadOps, " %s %c %d %d", writeFileName, writeChar, startByte, numBytes);
 
       //write_ssfs() function from common.h found in disk_ops.c
       //should we lock before calling to the function?
-      write_ssfs(writeFileName, writeChar[0], atoi(startByte), atoi(numBytes), NULL);
+      write_ssfs(writeFileName, writeChar, startByte, numBytes, NULL);
 
 
-    } else if(strstr(lineBuff, "READ") != NULL){
-      char* readFileName = strstr(lineBuff, " ");
-      char* startByte = strstr(readFileName, " ");
-      char* numBytes = strstr(startByte, " ");
-
-      if(readFileName == NULL || startByte == NULL || numBytes == NULL){
-        perror("Error: Wrong format for READ instruction");
-        exit(1);
-      }
+    } else if(strcmp(commands, "READ") == 0){
+      char readFileName[32];
+      int startByte;
+      int numBytes;
 
       //changes the spaces for null terminators
-      strncpy(startByte-1, "\0", 1);
-      strncpy(numBytes-1, "\0", 1);
+      fscanf(threadOps, " %s %d %d", readFileName, startByte, numBytes);
 
       //write_ssfs() function from common.h found in disk_ops.c
       //should we lock before calling to the function?
       read_ssfs(writeFileName, atoi(startByte), atoi(numBytes));
 
 
-    } else if(strcmp(lineBuff, "LIST") != 0){
+    } else if(strcmp(commands, "LIST") == 0){
       list();
 
-    } else if(strcmp(lineBuff, "SHUTDOWN") != 0){
+    } else if(strcmp(commands, "SHUTDOWN") == 0){
       //shut down after queue of requests is finished
       //exit this process
 
@@ -240,7 +209,7 @@ int main(int argc, char** argv){
 			read(diskFile, &inodes[q], 4);
 		}
 	}
-	
+
 	read(diskFile, &free_bitfield,num_blocks/8);
 
 	if(argc >= 3){ //create one thread
