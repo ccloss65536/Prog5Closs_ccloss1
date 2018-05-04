@@ -156,7 +156,7 @@ void* readThreadOps(void* threadName){
       list();
 
     } else if(strcmp(lineBuff, "SHUTDOWN") != 0){
-      
+
 
     }
 
@@ -220,7 +220,10 @@ int main(int argc, char** argv){
 
   //Open file for reading and writing
 
-  diskFile = open(diskName, O_RDWR);
+
+  diskFile = open(diskName);
+
+
 	//make disk file if not there, read sizes//int test
 	//if( read(diskFile, &num_blocks, 4) < 0){//file does not exist
 	//	sts;

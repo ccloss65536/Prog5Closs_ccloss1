@@ -2,6 +2,9 @@
 #include <pthread.h>
 #include "common.h"
 #include <string.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 int readFd = open("/tmp/diskpipe", O_RDONLY);
 
@@ -22,8 +25,8 @@ void request(block_ptr block, void* buffer, char read_write){
 	void* doneRequest;
 	while(oldrequest != *((int*)doneRequest)) read(readFd, doneRequest, sizeof(int));
 
-
 }
+
 void startup(){
 	int disk_fd = open(name, O_RDWR);
 
@@ -57,12 +60,33 @@ void create(char* name){
 	for(int i =0; i < max_files; i++){
 		if(inodes[i].size == -1){
 			inodes[i] == newFileInode;
+			num_files++;
+			break;
 		}
 	}
 	pthread_mutex_unlock(&inode_list);
 }
 
-int import(char* new_name, char* unix_name){}
+int import(char* new_name, char* unix_name){
+	int unixFile = open(unix_name, O_RDONLY);
+	if(unixFile == NULL){
+		perror("Error: Unix file does not exist");
+		exit(1);
+	}
+	if(find_file(new_name) == -1){
+		create(new_name);
+	} else{
+		char* c;
+		int locationInFile = 0;
+		while(read(unixFile, c, 1)){
+			lseek(unixFile, locationInFile, SEEK_CUR);
+
+		}
+
+	}
+	close(unixFile);
+}
+
 void cat(char* name){
 	int index = find_file(name)
 	if(index < 0) {
@@ -165,6 +189,7 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 	free(data);
 	free(indirect);
 }
+
 void list(){
 	pthread_mutex_lock(&inode_list);
 	for(int i = 0; i < max_files; i++){
