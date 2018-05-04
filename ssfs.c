@@ -124,33 +124,40 @@ void* readThreadOps(void* threadName){
     } else if(strcmp(commands, "LIST") == 0){
       list();
 
-    } else if(strcmp(commands, "SHUTDOWN") == 0){
+    } else if(strcmp(lineBuff, "SHUTDOWN") != 0){
+      shutdown();
+      fclose(threadOps);
+      pthread_exit(0);
+
       //shut down after queue of requests is finished
       //exit this process
 
 
     }
 
+
   }
 
   fclose(threadOps);
+  pthread_exit(0);
+
 
 }
 
 int main(int argc, char** argv){
 	//initialize globals
 
-	int num_requests = 0;
-	int next_free_request = 0;
-	int next_to_do = 0;
-	disk_request pending[max_requests];
-	inode inodes[max_files];
-	pthread_cond_t request_empty = PTHREAD_COND_INITIALIZER;
-	pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER;
-	pthread_mutex_t request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
-	pthread_mutex_t inode_list = PTHREAD_MUTEX_INITIALIZER;
-	pthread_mutex_t free_block_list = PTHREAD_MUTEX_INITIALIZER;
-	pthread_mutex_t request_fufilled_mutex = PTHREAD_MUTEX_INITIALIZER;
+	num_requests = 0;
+	next_free_request = 0;
+	next_to_do = 0;
+	pthread_cond_init(&request_empty, NULL);
+	pthread_cond_init(&request_fill, NULL);
+	pthread_mutex_init(&request_condition_mutex, NULL);
+	pthread_mutex_init(&inode_list, NULL);
+	pthread_mutex_init(&free_block_list, NULL);;
+	pthread_mutex_init(&request_fufilled_mutex, NULL);
+	pthread_mutex_init(&request_end_mutex, NULL);
+	pthread_cond_init(&request_end, NULL);
 	int p;
 	for(p = 0; p < max_requests;p++){
 		pthread_cond_init(&(request_fufilled[p]), NULL); //PTHREAD_COND_INITIALIZER can only be used when declaring a variable
@@ -229,12 +236,19 @@ int main(int argc, char** argv){
     pthread_create(&opThread4, NULL, &readThreadOps, (void*) thread4ops);
   }
   close(diskFile);
+
+  pthread_mutex_lock(&request_end_mutex);
+  pthread_cond_wait(&request_end, &request_end_mutex);
+
   pthread_join(opThread1, NULL);
 	if(argc >= 4){ //only join a thread if we created it earlier{
+    pthread_cancel(opThread2);
   	pthread_join(opThread2, NULL);
 		if(argc>= 5){
+      pthread_cancel(opThread3);
 			pthread_join(opThread3, NULL);
 			if(argc >= 6){
+        pthread_cancel(opThread4);
   			pthread_join(opThread4, NULL);
 			}
 		}

@@ -318,3 +318,7 @@ void list(){
 	}
 	pthread_mutex_unlock(&inode_list);
 }
+
+void shutdown(){
+	request(0, NULL, 's');
+}
