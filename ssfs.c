@@ -156,6 +156,8 @@ void* readThreadOps(void* threadName){
       list();
 
     } else if(strcmp(lineBuff, "SHUTDOWN") != 0){
+      fclose(threadOps);
+      pthread_exit();
       //shut down after queue of requests is finished
       //exit this process
 
