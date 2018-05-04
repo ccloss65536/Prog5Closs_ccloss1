@@ -16,8 +16,8 @@ void request(block_ptr block, void* buffer, char read_write){
 
 	int oldrequest = next_free_request;
 
-	pending[next_free_request] = {block, buffer, read_write}; 
-	next_free_request = (next_free_request + 1) % max_requests; 
+	pending[next_free_request] = {block, buffer, read_write};
+	next_free_request = (next_free_request + 1) % max_requests;
 
 	pthread_cond_signal(&request_fill);
 	pthread_mutex_unlock(&request_condition_mutex);
@@ -170,7 +170,7 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes){
 	 //allocate new blocks if necessary
 	int ptrs_per_block = block_size/sizeof(block_ptr);
 	int old_end_block = file_inode.size / block_size;
-	int new_end_block = (start_byte + num_bytes) / block_size
+	int new_end_block = (start_byte + num_bytes) / block_size;
 	for(;old_end_block < new_end_block && old_end_block < 12; old_end_block++){
 		inodes[index].direct[old_end_block] = find_free_block();
 	}
@@ -183,8 +183,7 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes){
 	}
 	else{
 		request(inodes[index].double_indirect, double_indirect, 'r');
-
-
+	}
 
 	int start_block_ind = start_byte/block_size; //The start byte is in the file's start_block_indth data block
 	int curr_block_ind = start_block_ind;//keep track of which block we need to read from
@@ -217,6 +216,7 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes){
 	free(indirect);
 
 	}
+}
 void read_ssfs(char* name, int start_byte, int num_bytes){
 	int index = find_file(name)
 	if(index < 0) {
