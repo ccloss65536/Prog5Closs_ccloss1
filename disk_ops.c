@@ -35,9 +35,9 @@ void request(block_ptr block, void* buffer, char read_write){
 
 int find_free_block(){
 	pthread_mutex_lock(&free_block_list);
-	int i;
+	int i = 0;
 	int free_block;
-	for(i = 0; i < num_blocks/8; i++){
+	for(; i < num_blocks/8; i++){
 		if((free_bitfield[num_blocks/8] & (1 << (i % 8))) == 0){
 			free_block = i;
 			free_bitfield[num_blocks/8] |= (1 << (i % 8));
@@ -125,7 +125,7 @@ void erase(char* name){
 		free(double_indirect);
 		exit(-1);
 	}
-	int i;
+	unsigned int i;
 	pthread_mutex_lock(&free_block_list);
 	for(i = 0; i < 12 && i < n.size/block_size; i++){
 		int block_num = indirect[i - 12];
@@ -157,13 +157,13 @@ void erase(char* name){
 
 
 
-int write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buffer){
+void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buffer){
 	char* data = (buffer)?buffer:malloc( (num_bytes + 1) / block_size * block_size);  //not an exact ceil, but memory is cheap and floatng point ops are not
 	int index = find_file(name);
 
 	if(index < 0) {
 		printf("File \"%s\" not found!\n",name);
-		return -1;
+		return;
 	}
 
 	inode file_inode = inodes[index];
@@ -181,6 +181,7 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buff
 		exit(-1);
 	}
 	 //allocate new blocks if necessary
+	pthread_mutex_lock(&inode_list);
 	int ptrs_per_block = block_size/sizeof(block_ptr);
 	int old_end_block = file_inode.size / block_size;
 	int new_end_block = (start_byte + num_bytes) / block_size;
@@ -196,21 +197,21 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buff
 	}
 	if(old_end_block >= 12 + ptrs_per_block){
 		request(inodes[index].double_indirect, double_indirect, 'r');
-		int new_dbl_end_blk = (new_end_block - 12 - ptrs_per_block)/block_size/block_size;
-		int old_dbl_end_blk = (old_end_block - 12 - ptrs_per_block)/block_size/block_size;
-		int k = old_dbl_end_blk;
-		for(;k < new_dbl_end_blk; k++){
+		int new_dbl_blk = (new_end_block - 12 - ptrs_per_block)/block_size/block_size;
+		int old_dbl_blk = (old_end_block - 12 - ptrs_per_block)/block_size/block_size;
+		int k = old_dbl_blk;
+		for(;k < new_dbl_blk; k++){
 			double_indirect[k] = find_free_block();
 		}
 		request(inodes[index].double_indirect, double_indirect, 'w');
-		while(old_dbl_block < new_dbl_block){
+		while(old_dbl_blk < new_dbl_blk){
 			int m;
 			for(m = 0; m < ptrs_per_block && old_end_block < new_end_block; m++){
 				old_end_block++;
 				indirect[m] = find_free_block();
 			}
-			request(double_indirect[old_dbl_end_blk], indirect, 'w');
-			old_dbl_end_blk++;
+			request(double_indirect[old_dbl_blk], indirect, 'w');
+			old_dbl_blk++;
 		}
 
 	}
@@ -221,12 +222,11 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buff
 	int curr_block_ind = start_block_ind;//keep track of which block we need to read from
 	int end_block_ind = (start_byte + num_bytes)/block_size;
 	for(; curr_block_ind < 12 && curr_block_ind <= end_block_ind; curr_block_ind++){
-		request(file_inode.direct[i], data + curr_block_ind*block_size, 'r');
+		request(inodes[index].direct[i], data + curr_block_ind*block_size, 'r');
 	}
 
 	if(curr_block_ind == 12){//the 0th through 11th blocks are direct blocks
-		request(file_inode.indirect, indirect, 'r');
-		block_ptr block;
+		request(inodes[index].indirect, indirect, 'r');
 		for(; curr_block_ind < 12 + ptrs_per_block  && curr_block_ind <= end_block_ind; curr_block_ind++){
 		request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'w');
 
@@ -234,7 +234,7 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buff
 	}
 	int indirect_end_block = 12 + ptrs_per_block;
 	if(curr_block_ind == indirect_end_block) {
-		request(file_inode.double_indirect, double_indirect, 'r');
+		request(inodes[index].double_indirect, double_indirect, 'r');
 		while(curr_block_ind < indirect_end_block + ptrs_per_block*ptrs_per_block){
 			request(double_indirect[(curr_block_ind - indirect_end_block) / block_size], indirect, 'r');
 			for(int i = 0; i < block_size; i++){
@@ -243,6 +243,7 @@ int write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buff
 			}
 		}
 	}
+	pthread_mutex_unlock(&inode_list);
 	write(1 ,data + start_byte, num_bytes);
 	free(data);
 	free(indirect);
@@ -255,7 +256,9 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 		printf("File \"%s\" not found!\n",name);
 		return;
 	}
+	pthread_mutex_lock(&inode_list);
 	inode file_inode = inodes[index];
+	pthread_mutex_unlock(&inode_list);
 	char* data = malloc( (num_bytes + 1) / block_size * block_size); //not an exact ceil, but memory is cheap and floatng point ops are not
 	int* indirect = malloc(block_size);
 	int* double_indirect = malloc(block_size);
@@ -276,7 +279,6 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 
 	if(curr_block_ind == 12){//the 0th through 11th blocks are direct blocks
 		request(file_inode.indirect, indirect, 'r');
-		block_ptr block;
 		for(; curr_block_ind < 12 + ptrs_per_block  && curr_block_ind <= end_block_ind; curr_block_ind++){
 		request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'r');
 

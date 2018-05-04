@@ -30,7 +30,7 @@ void create(char* name);
 void import(char* new_name, char* unix_name);
 void cat(char* name);
 void erase(char* name);
-int write_ssfs(char* name, char input, int start_byte, int num_bytes);
+void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buffer);
 void read_ssfs(char* name, int start_byte, int num_bytes);
 void list();
 void shutdown();
@@ -49,19 +49,19 @@ void* runner();
 //global variables shared between threads
 #define max_requests (30)
 #define max_files (256)
-int num_requests = 0;
-int next_free_request = 0;
-int next_to_do = 0;
+int num_requests; //the extern variables are initalized in ssfs.c at sartup, suince initializiing them here results in linker errors
+int next_free_request;
+int next_to_do;
 disk_request pending[max_requests];
 inode inodes[max_files];
-int num_files = 0;
+int num_files;
 int block_size;
 int free_space;
-pthread_cond_t request_empty = PTHREAD_COND_INITIALIZER;
-pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER; 
-pthread_mutex_t request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t inode_list = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t free_block_list = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t request_empty;
+pthread_cond_t request_fill; 
+pthread_mutex_t request_condition_mutex;
+pthread_mutex_t inode_list;
+pthread_mutex_t free_block_list;
 char* free_bitfield; //needs dynamic allocation, b/c its of variable size
 int diskFile; //file descriptor
 int writeFd;

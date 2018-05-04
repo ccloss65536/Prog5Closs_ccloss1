@@ -15,11 +15,10 @@ void take_request(){
 	if (next_consumed.read_write == 'r') read_request(next_consumed.requested, next_consumed.buffer);
 
 	
-	int* oldnext;
-	*oldnext = next_to_do;
+	int oldnext = next_to_do;
 	next_to_do = (next_to_do + 1) % max_requests;
 	num_requests--; 
-	write(writeFd, (void*)oldnext, sizeof(int));
+	write(writeFd, &oldnext, sizeof(int));
 	pthread_cond_signal(&request_fill);
 	pthread_mutex_unlock(&request_condition_mutex);
 }
