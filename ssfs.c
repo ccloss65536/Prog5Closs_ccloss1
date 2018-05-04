@@ -177,7 +177,7 @@ int main(int argc, char** argv){
 	disk_request pending[max_requests];
 	inode inodes[max_files];
 	pthread_cond_t request_empty = PTHREAD_COND_INITIALIZER;
-	pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER; 
+	pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER;
 	pthread_mutex_t request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
 	pthread_mutex_t inode_list = PTHREAD_MUTEX_INITIALIZER;
 	pthread_mutex_t free_block_list = PTHREAD_MUTEX_INITIALIZER;
@@ -249,7 +249,6 @@ int main(int argc, char** argv){
 	for(int i = 0; i < max_files; i++){
       inodes[i].size = -1;
 	}
-
 
 	read(diskFile, &free_bitfield,num_blocks/8);
 
