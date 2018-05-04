@@ -162,26 +162,27 @@ void* readThreadOps(void* threadName){
 
     }
 
+
   }
 
   fclose(threadOps);
+	return NULL;
+
 
 }
 
 int main(int argc, char** argv){
 	//initialize globals
 
-	int num_requests = 0;
-	int next_free_request = 0;
-	int next_to_do = 0;
-	disk_request pending[max_requests];
-	inode inodes[max_files];
-	pthread_cond_t request_empty = PTHREAD_COND_INITIALIZER;
-	pthread_cond_t request_fill = PTHREAD_COND_INITIALIZER;
-	pthread_mutex_t request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
-	pthread_mutex_t inode_list = PTHREAD_MUTEX_INITIALIZER;
-	pthread_mutex_t free_block_list = PTHREAD_MUTEX_INITIALIZER;
-	pthread_mutex_t request_fufilled_mutex = PTHREAD_MUTEX_INITIALIZER;
+	num_requests = 0;
+	next_free_request = 0;
+	next_to_do = 0;
+	pthread_cond_init(&request_empty, NULL);
+	pthread_cond_init(&request_fill, NULL);
+	pthread_mutex_init(&request_condition_mutex, NULL); 
+	pthread_mutex_init(&inode_list, NULL);
+	pthread_mutex_init(&free_block_list, NULL);
+	pthread_mutex_init(&request_fufilled_mutex, NULL);
 	int p;
 	for(p = 0; p < max_requests;p++){
 		pthread_cond_init(&(request_fufilled[p]), NULL); //PTHREAD_COND_INITIALIZER can only be used when declaring a variable
