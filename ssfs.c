@@ -183,11 +183,16 @@ int main(int argc, char** argv){
 	pthread_mutex_t request_condition_mutex = PTHREAD_MUTEX_INITIALIZER;
 	pthread_mutex_t inode_list = PTHREAD_MUTEX_INITIALIZER;
 	pthread_mutex_t free_block_list = PTHREAD_MUTEX_INITIALIZER;
+	pthread_mutex_t request_fufilled_mutex = PTHREAD_MUTEX_INITIALIZER;
+	int p;
+	for(p = 0; p < max_requests;p++){
+		pthread_cond_init(&(request_fufilled[p]), NULL); //PTHREAD_COND_INITIALIZER can only be used when declaring a variable
+	}
 
-  char* thread1ops;
-  char* thread2ops;
-  char* thread3ops;
-  char* thread4ops;
+  char thread1ops[256];
+  char thread2ops[256];
+  char thread3ops[256];
+  char thread4ops[256];
 
   pthread_t opThread1;
   pthread_t opThread2;
@@ -204,36 +209,12 @@ int main(int argc, char** argv){
     exit(1);
   }
 
-  char pipeName[] = "/tmp/diskpipe";
-  int ret_val = mkfifo(pipeName, 0666);
-  if (ret_val == -1) {
-    perror("Error creating the named pipe1");
-  }
-
-  writeFd = open("/tmp/diskpipe", O_WRONLY);
-  readFd = open("/tmp/diskpipe", O_RDONLY);
-
   pthread_t schedThread;
   pthread_create(&schedThread, NULL, &runner, NULL);
 
   //store argv[1] as the disk file name
   char* diskName = argv[1];
-  if(argc >= 3){ //create one thread
-    strcpy(thread1ops, argv[2]);
-    pthread_create(&opThread1, NULL, &readThreadOps, (void*) thread1ops);
-  }
-  if(argc >= 4){ //create another thread
-    strcpy(thread2ops, argv[3]);
-    pthread_create(&opThread2, NULL, &readThreadOps, (void*) thread2ops);
-  }
-  if(argc >= 5){ //create another thread
-    strcpy(thread3ops, argv[4]);
-    pthread_create(&opThread3, NULL, &readThreadOps, (void*) thread3ops);
-  }
-  if(argc == 6){ //create another thread
-    strcpy(thread4ops, argv[5]);
-    pthread_create(&opThread4, NULL, &readThreadOps, (void*) thread4ops);
-  }
+
 
   //Open file for reading and writing
 
@@ -251,18 +232,45 @@ int main(int argc, char** argv){
 	for(int i = 0; i < max_files; i++){
       inodes[i].size = -1;
 	}
-
-
+	int q = 0;
+	block_ptr block_num;
+	for(;q < max_files; q++){
+		read(diskFile, &block_num, 4);
+		if(block_num > 0){
+			lseek(diskFile, block_num * block_size, SEEK_SET);
+			read(diskFile, &inodes[q], 4);
+		}
+	}
+	
 	read(diskFile, &free_bitfield,num_blocks/8);
 
+	if(argc >= 3){ //create one thread
+    strcpy(thread1ops, argv[2]);
+    pthread_create(&opThread1, NULL, &readThreadOps, (void*) thread1ops);
+  }
+  if(argc >= 4){ //create another thread
+    strcpy(thread2ops, argv[3]);
+    pthread_create(&opThread2, NULL, &readThreadOps, (void*) thread2ops);
+  }
+  if(argc >= 5){ //create another thread
+    strcpy(thread3ops, argv[4]);
+    pthread_create(&opThread3, NULL, &readThreadOps, (void*) thread3ops);
+  }
+  if(argc == 6){ //create another thread
+    strcpy(thread4ops, argv[5]);
+    pthread_create(&opThread4, NULL, &readThreadOps, (void*) thread4ops);
+  }
   close(diskFile);
-
-  unlink("/tmp/diskpipe");
-
   pthread_join(opThread1, NULL);
-  pthread_join(opThread2, NULL);
-  pthread_join(opThread3, NULL);
-  pthread_join(opThread4, NULL);
+	if(argc >= 4){ //only join a thread if we created it earlier{
+  	pthread_join(opThread2, NULL);
+		if(argc>= 5){
+			pthread_join(opThread3, NULL);
+			if(argc >= 6){
+  			pthread_join(opThread4, NULL);
+			}
+		}
+	}
   pthread_join(schedThread, NULL);
   return 0;
 }

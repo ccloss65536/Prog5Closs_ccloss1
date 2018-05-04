@@ -46,20 +46,25 @@ int main(int argc, char** argv){
 	int negone = -1;
 	int zero = 0;
 	int one = 1;
-
-	for(int i = 0; i < 256; i++){
+	int i;
+	for(i = 0; i < 256; i++){
 		write(disk_fd, &negone, 4);
 	}
-	for(int i = 0; i < blocks/8; i++){
+	for(i = 0; i < blocks/8; i++){
 		double numBlocksInUse = ceil((1032 + blocks/8.0) / block_size);
-		if(i <= (int) numBlocksInUse)
+		if(i < ((int)numBlocksInUse/8*8))
 			write(disk_fd, &negone, 1);
-		else
+		else if(i > (int)numBlocksInUse/8*8)
 			write(disk_fd, &zero, 1);
-		//TODO: fix free block list
+		else{
+			char partial = 0;
+			char j = 0;
+			for(;j < i % 8; j++) partial &= (1 << j);
+			write(disk_fd, &partial, 1);
+		}
 	}
 
-	for(int i = 0; i < total_size - 8 - 1024 - blocks/8); i++){
+	for(i = 0; i < total_size - 8 - 1024 - blocks/8; i++){
 				write(disk_fd,"\7",1);
 	}
 
