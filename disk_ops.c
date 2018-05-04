@@ -16,10 +16,6 @@ void request(block_ptr block, void* buffer, char read_write){
 
 	int oldrequest = next_free_request;
 
-<<<<<<< HEAD
-	pending[next_free_request] = {block, buffer, read_write};
-	next_free_request = (next_free_request + 1) % max_requests;
-=======
 	disk_request newRequest;
 	newRequest.requested = block;
 	newRequest.buffer = buffer;
@@ -27,7 +23,6 @@ void request(block_ptr block, void* buffer, char read_write){
 
 	pending[next_free_request] = newRequest;
 	next_free_request = (next_free_request + 1) % max_requests;
->>>>>>> 79739f5f56c4ed5b7e18947ba48aea540d8d26da
 
 	pthread_cond_signal(&request_fill);
 	pthread_mutex_unlock(&request_condition_mutex);
