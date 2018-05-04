@@ -102,7 +102,7 @@ void import(char* new_name, char* unix_name){
 		//that way the location is updated based on how much input was taken
 		//if it was a whole block it will add block_size
 		//else it will just add the amount of bytes read
-		write_ssfs(new_name, '', i*block_size, bytesRead, fileBuffer);
+		write_ssfs(new_name, 'a', i*block_size, bytesRead, fileBuffer);
 		i++;
 		bytesRead = read(unixFile, fileBuffer, block_size);
 	}
@@ -166,7 +166,7 @@ void erase(char* name){
 
 
 
-void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buffer){	
+void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buffer){
 
 	int index = find_file(name);
 	pthread_mutex_lock(&inode_list);
