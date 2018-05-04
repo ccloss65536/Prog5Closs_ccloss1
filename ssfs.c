@@ -101,7 +101,7 @@ void* readThreadOps(void* threadName){
     } else if(strcmp(commands, "WRITE") == 0){
       //changes the spaces for null terminators
 
-      fscanf(threadOps, " %s %c %d %d", writeFileName, writeChar, startByte, numBytes);
+      fscanf(threadOps, " %s %c %d %d", writeFileName, &writeChar, &startByte, &numBytes);
 
       //write_ssfs() function from common.h found in disk_ops.c
       //should we lock before calling to the function?
@@ -110,15 +110,15 @@ void* readThreadOps(void* threadName){
 
     } else if(strcmp(commands, "READ") == 0){
       char readFileName[32];
-      int startByte;
-      int numBytes;
+      int startByte = -1;
+      int numBytes = -1;
 
       //changes the spaces for null terminators
-      fscanf(threadOps, " %s %d %d", readFileName, startByte, numBytes);
+      fscanf(threadOps, " %s %d %d", readFileName, &startByte, &numBytes);
 
       //write_ssfs() function from common.h found in disk_ops.c
       //should we lock before calling to the function?
-      read_ssfs(writeFileName, atoi(startByte), atoi(numBytes));
+      read_ssfs(writeFileName, startByte, numBytes);
 
 
     } else if(strcmp(commands, "LIST") == 0){
@@ -240,19 +240,24 @@ int main(int argc, char** argv){
   pthread_mutex_lock(&request_end_mutex);
   pthread_cond_wait(&request_end, &request_end_mutex);
 
-  pthread_join(opThread1, NULL);
-	if(argc >= 4){ //only join a thread if we created it earlier{
-    pthread_cancel(opThread2);
-  	pthread_join(opThread2, NULL);
-		if(argc>= 5){
-      pthread_cancel(opThread3);
-			pthread_join(opThread3, NULL);
-			if(argc >= 6){
-        pthread_cancel(opThread4);
-  			pthread_join(opThread4, NULL);
-			}
-		}
-	}
+  if(argc >= 3){
+    pthread_join(opThread1, NULL);
+    if(argc >= 4){ //only join a thread if we created it earlier{
+      pthread_cancel(opThread2);
+    	pthread_join(opThread2, NULL);
+    	if(argc>= 5){
+        pthread_cancel(opThread3);
+    		pthread_join(opThread3, NULL);
+    		if(argc >= 6){
+          pthread_cancel(opThread4);
+    			pthread_join(opThread4, NULL);
+    		}
+    	}
+    }
+  } else{
+    perror("Error: No threads have been requested\n");
+    exit(1);
+  }
   pthread_join(schedThread, NULL);
   return 0;
 }
