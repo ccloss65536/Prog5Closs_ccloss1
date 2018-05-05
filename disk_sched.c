@@ -23,7 +23,7 @@ int take_request(){
 	next_to_do = (next_to_do + 1) % max_requests;
 	num_requests--; 
 	write(writeFd, &oldnext, sizeof(int));
-	pthread_cond_signal(&request_fill);
+	pthread_cond_signal(&request_empty);
 	pthread_cond_signal(&request_fufilled[oldnext]);
 	return 1;
 }
