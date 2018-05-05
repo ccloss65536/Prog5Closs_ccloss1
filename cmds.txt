@@ -1,3 +1,9 @@
-file prog4pagepolicy 
-break 33
-run 7
+file ssfs 
+break ssfs.c:156
+run TEST test1.txt
+while(request_condition_mutex.__size > 0)
+	n
+	p request_condition_mutex
+	thread 3
+end
+info threads

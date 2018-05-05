@@ -150,9 +150,9 @@ int main(int argc, char** argv){
 	num_requests = 0;
 	next_free_request = 0;
 	next_to_do = 0;
-	pthread_cond_init(&request_empty, NULL);
-	pthread_cond_init(&request_fill, NULL);
-	pthread_mutex_init(&request_condition_mutex, NULL);
+	sem_init(&request_empty, 0, max_requests);
+	sem_init(&request_full, 0, 0);
+	sem_init(&request_condition_mutex, 0 , 2);
 	pthread_mutex_init(&inode_list, NULL);
 	pthread_mutex_init(&free_block_list, NULL);;
 	pthread_mutex_init(&request_fufilled_mutex, NULL);
@@ -161,8 +161,7 @@ int main(int argc, char** argv){
 	int p;
 	for(p = 0; p < max_requests;p++){
 		pthread_cond_init(&(request_fufilled[p]), NULL); 
-		sem_init(&(empty[p]), 0, 0);
-		sem_init(&(full[p]), 0, 0);//PTHREAD_COND_INITIALIZER can only be used when declaring a variable
+		wakeup_arr[p] = 0;//PTHREAD_COND_INITIALIZER can only be used when declaring a variable
 	}
 
   char thread1ops[256];
@@ -170,10 +169,7 @@ int main(int argc, char** argv){
   char thread3ops[256];
   char thread4ops[256];
 
-  pthread_t opThread1;
-  pthread_t opThread2;
-  pthread_t opThread3;
-  pthread_t opThread4;
+  pthread_create(&schedThread, NULL, &runner, NULL);
 
   char* usage = "ssfs <disk file name> thread1ops.txt thread2ops.txt thread3ops.txt thread4ops.txt\n";
 
@@ -185,8 +181,8 @@ int main(int argc, char** argv){
     exit(1);
   }
 
-  pthread_t schedThread;
-  pthread_create(&schedThread, NULL, &runner, NULL);
+
+
 
   //store argv[1] as the disk file name
   char* diskName = argv[1];
@@ -215,11 +211,11 @@ int main(int argc, char** argv){
 		read(diskFile, &block_num, 4);
 		if(block_num > 0){
 			lseek(diskFile, block_num * block_size, SEEK_SET);
-			read(diskFile, &inodes[q], 4);
+			read(diskFile, &inodes[q], sizeof(inode));
 		}
 	}
-
-	read(diskFile, &free_bitfield,num_blocks/8);
+	lseek(diskFile, 1032, SEEK_SET);
+	read(diskFile, free_bitfield,num_blocks/8);
 
 	if(argc >= 3){ //create one thread
     strcpy(thread1ops, argv[2]);

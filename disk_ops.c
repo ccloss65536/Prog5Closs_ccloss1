@@ -12,8 +12,10 @@
 void request(block_ptr block, void* buffer, char read_write){
 	//pthread_mutex_lock(&request_condition_mutex);
 	//while(num_requests >= max_requests) pthread_cond_wait(&request_empty, &request_condition_mutex);
-	sem_wait(&(full[next_free_request]));
-	num_requests++;
+	sem_wait(&request_empty);
+	printf("Uhhhhhhhhhhh...\n");
+	sem_wait(&request_condition_mutex);
+	printf("Why does this not work!?!?!?!?\n");
 
 	int oldrequest = next_free_request;
 	printf("In: %d\n", oldrequest); 
@@ -26,16 +28,15 @@ void request(block_ptr block, void* buffer, char read_write){
 	printf("Write to array\n");
 	next_free_request = (next_free_request + 1) % max_requests;
 	
-	//sleep(1);
-	//pthread_cond_signal(&request_fill);
-	//printf("We signaled\n");
+	sem_post(&request_condition_mutex);
+	sem_post(&request_full);
+	printf("We signaled\n");
 	//pthread_mutex_unlock(&request_condition_mutex);
-
 	printf("Number of requests: %d\n",num_requests); 
-	sem_post(&(empty[oldrequest]));
-	//pthread_mutex_lock(&request_fufilled_mutex);
-	//pthread_cond_wait(&request_fufilled[oldrequest], &request_fufilled_mutex);
-	//pthread_mutex_unlock(&request_fufilled_mutex);
+	pthread_mutex_lock(&request_fufilled_mutex);
+	while(wakeup_arr[oldrequest] < 1) pthread_cond_wait(&request_fufilled[oldrequest], &request_fufilled_mutex);
+	wakeup_arr[oldrequest] = 0;
+	pthread_mutex_unlock(&request_fufilled_mutex);
 
 }
 

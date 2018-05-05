@@ -11,12 +11,14 @@ int take_request(){
 	//printf("Do we hold the lock? %d\n", num_requests);
 	//while(num_requests <= 0) pthread_cond_wait(&request_fill, &request_condition_mutex);
 	//printf("We escaped the wait\n");
-	sem_wait(&(empty[next_to_do]));
-	
+	printf("??????\n");
+	//sleep(99999);
+	sem_wait(&request_full);
+	printf("Is sched here?\n");
+	sem_wait(&request_condition_mutex);
 	disk_request next_consumed = pending[next_to_do];
 
 	if (next_consumed.read_write == 's'){
-		pthread_mutex_unlock(&request_condition_mutex);
 		return 0; 
 	}
 	if (next_consumed.read_write == 'w') write_request(next_consumed.requested, next_consumed.buffer);
@@ -26,12 +28,12 @@ int take_request(){
 	int oldnext = next_to_do;
 	printf("Out: %d\n", oldnext);
 	next_to_do = (next_to_do + 1) % max_requests;
-	num_requests--; 
-	sem_wait(&(full[oldnext]));
+	wakeup_arr[oldnext] = 1;
+	sem_post(&request_condition_mutex);
+	sem_post(&request_empty);
 	//write(writeFd, &oldnext, sizeof(int));
 	//pthread_cond_signal(&request_empty);
 	pthread_cond_signal(&request_fufilled[oldnext]);
-	pthread_mutex_unlock(&request_condition_mutex);
 	return 1;
 }
 

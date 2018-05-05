@@ -59,9 +59,9 @@ inode inodes[max_files];
 int num_files;
 int block_size;
 int free_space;
-pthread_cond_t request_empty;
-pthread_cond_t request_fill; 
-pthread_mutex_t request_condition_mutex;
+sem_t request_empty;
+sem_t request_full; 
+sem_t request_condition_mutex;
 pthread_mutex_t inode_list;
 pthread_mutex_t free_block_list;
 pthread_mutex_t request_fufilled_mutex;
@@ -73,8 +73,11 @@ int diskFile; //file descriptor
 int writeFd;
 int readFd;
 int num_blocks;
-
-sem_t empty[max_requests];
-sem_t full[max_requests];
+char wakeup_arr[max_requests];
+pthread_t opThread1;
+pthread_t opThread2;
+pthread_t opThread3;
+pthread_t opThread4;
+pthread_t schedThread;
 
 //free block list type to come
