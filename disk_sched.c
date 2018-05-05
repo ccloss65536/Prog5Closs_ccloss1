@@ -7,10 +7,12 @@
 
 int take_request(){
 	//sleep(1);
-	pthread_mutex_lock(&request_condition_mutex);
-	printf("Do we hold the lock? %d\n", num_requests);
-	while(num_requests <= 0) pthread_cond_wait(&request_fill, &request_condition_mutex);
-	printf("We escaped the wait\n");
+	//pthread_mutex_lock(&request_condition_mutex);
+	//printf("Do we hold the lock? %d\n", num_requests);
+	//while(num_requests <= 0) pthread_cond_wait(&request_fill, &request_condition_mutex);
+	//printf("We escaped the wait\n");
+	sem_wait(&(empty[next_to_do]));
+	
 	disk_request next_consumed = pending[next_to_do];
 
 	if (next_consumed.read_write == 's'){
@@ -25,8 +27,9 @@ int take_request(){
 	printf("Out: %d\n", oldnext);
 	next_to_do = (next_to_do + 1) % max_requests;
 	num_requests--; 
-	write(writeFd, &oldnext, sizeof(int));
-	pthread_cond_signal(&request_empty);
+	sem_wait(&(full[oldnext]));
+	//write(writeFd, &oldnext, sizeof(int));
+	//pthread_cond_signal(&request_empty);
 	pthread_cond_signal(&request_fufilled[oldnext]);
 	pthread_mutex_unlock(&request_condition_mutex);
 	return 1;
@@ -45,6 +48,5 @@ void read_request(block_ptr bp, void* buffer){
 
 void* runner(){
 	while(take_request());
-	pthread_cond_signal(&request_end);	
 	pthread_exit(0);
 }

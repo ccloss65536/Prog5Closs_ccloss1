@@ -10,8 +10,9 @@
 
 //Puts a request for the disk scheduler into the array
 void request(block_ptr block, void* buffer, char read_write){
-	pthread_mutex_lock(&request_condition_mutex);
-	while(num_requests >= max_requests) pthread_cond_wait(&request_empty, &request_condition_mutex);
+	//pthread_mutex_lock(&request_condition_mutex);
+	//while(num_requests >= max_requests) pthread_cond_wait(&request_empty, &request_condition_mutex);
+	sem_wait(&(full[next_free_request]));
 	num_requests++;
 
 	int oldrequest = next_free_request;
@@ -24,15 +25,17 @@ void request(block_ptr block, void* buffer, char read_write){
 	pending[next_free_request] = newRequest;
 	printf("Write to array\n");
 	next_free_request = (next_free_request + 1) % max_requests;
-
-	pthread_cond_signal(&request_fill);
-	printf("We signaled\n");
-	pthread_mutex_unlock(&request_condition_mutex);
+	
+	//sleep(1);
+	//pthread_cond_signal(&request_fill);
+	//printf("We signaled\n");
+	//pthread_mutex_unlock(&request_condition_mutex);
 
 	printf("Number of requests: %d\n",num_requests); 
-	pthread_mutex_lock(&request_fufilled_mutex);
-	pthread_cond_wait(&request_fufilled[oldrequest], &request_fufilled_mutex);
-	pthread_mutex_unlock(&request_fufilled_mutex);
+	sem_post(&(empty[oldrequest]));
+	//pthread_mutex_lock(&request_fufilled_mutex);
+	//pthread_cond_wait(&request_fufilled[oldrequest], &request_fufilled_mutex);
+	//pthread_mutex_unlock(&request_fufilled_mutex);
 
 }
 
@@ -326,5 +329,5 @@ void list(){
 }
 
 void shutdown(){
-	request(0, NULL, 's');
+	pthread_cond_signal(&request_end);
 }

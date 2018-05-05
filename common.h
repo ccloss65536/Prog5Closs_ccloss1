@@ -1,5 +1,6 @@
 #pragma once
 #include <pthread.h>
+#include <semaphore.h>
 
 //types
 typedef int block_ptr;
@@ -73,5 +74,7 @@ int writeFd;
 int readFd;
 int num_blocks;
 
+sem_t empty[max_requests];
+sem_t full[max_requests];
 
 //free block list type to come

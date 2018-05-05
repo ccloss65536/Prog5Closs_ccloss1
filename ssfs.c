@@ -160,7 +160,9 @@ int main(int argc, char** argv){
 	pthread_cond_init(&request_end, NULL);
 	int p;
 	for(p = 0; p < max_requests;p++){
-		pthread_cond_init(&(request_fufilled[p]), NULL); //PTHREAD_COND_INITIALIZER can only be used when declaring a variable
+		pthread_cond_init(&(request_fufilled[p]), NULL); 
+		sem_init(&(empty[p]), 0, 0);
+		sem_init(&(full[p]), 0, 0);//PTHREAD_COND_INITIALIZER can only be used when declaring a variable
 	}
 
   char thread1ops[256];
