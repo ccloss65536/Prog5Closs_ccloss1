@@ -6,9 +6,11 @@
 #include <fcntl.h>
 
 int take_request(){
+	//sleep(1);
 	pthread_mutex_lock(&request_condition_mutex);
+	printf("Do we hold the lock? %d\n", num_requests);
 	while(num_requests <= 0) pthread_cond_wait(&request_fill, &request_condition_mutex);
-
+	printf("We escaped the wait\n");
 	disk_request next_consumed = pending[next_to_do];
 
 	if (next_consumed.read_write == 's'){
@@ -20,11 +22,13 @@ int take_request(){
 
 	
 	int oldnext = next_to_do;
+	printf("Out: %d\n", oldnext);
 	next_to_do = (next_to_do + 1) % max_requests;
 	num_requests--; 
 	write(writeFd, &oldnext, sizeof(int));
-	pthread_cond_signal(&request_fill);
+	pthread_cond_signal(&request_empty);
 	pthread_cond_signal(&request_fufilled[oldnext]);
+	pthread_mutex_unlock(&request_condition_mutex);
 	return 1;
 }
 
@@ -35,6 +39,7 @@ void write_request(block_ptr bp, void* buffer){
 
 void read_request(block_ptr bp, void* buffer){
 	lseek(diskFile, bp*block_size, SEEK_SET);
+	printf("It goes here\n");
 	read(diskFile, buffer, block_size);
 }
 

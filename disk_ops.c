@@ -15,18 +15,21 @@ void request(block_ptr block, void* buffer, char read_write){
 	num_requests++;
 
 	int oldrequest = next_free_request;
+	printf("In: %d\n", oldrequest); 
 
 	disk_request newRequest;
 	newRequest.requested = block;
 	newRequest.buffer = buffer;
 	newRequest.read_write = read_write;
-
 	pending[next_free_request] = newRequest;
+	printf("Write to array\n");
 	next_free_request = (next_free_request + 1) % max_requests;
 
 	pthread_cond_signal(&request_fill);
+	printf("We signaled\n");
 	pthread_mutex_unlock(&request_condition_mutex);
 
+	printf("Number of requests: %d\n",num_requests); 
 	pthread_mutex_lock(&request_fufilled_mutex);
 	pthread_cond_wait(&request_fufilled[oldrequest], &request_fufilled_mutex);
 	pthread_mutex_unlock(&request_fufilled_mutex);
@@ -53,7 +56,10 @@ int find_file(char* name){
 	pthread_mutex_lock(&inode_list);//We need to lock here because some thread could make a new file while we traverse the list
 	int i = 0;//Please do not change this! if i is initalized in ther for loop, gcc complains that i is uninitalized at the if statement
 	for(; i < max_files; i++){
-		if( inodes[i].size >= 0 && strcmp(inodes[i].name, name) == 0) break; //strcmp rdeturns zero if the two strings are equal
+		//if(inodes[i].size >= 0){
+			//printf("%s<end>\n%s<end>\n", inodes[i].name, name);
+		//}
+		if( inodes[i].size >= 0 && (strcmp(inodes[i].name, name) == 0)) break; //strcmp rdeturns zero if the two strings are equal
 	}
 	if(i == max_files) i = -1; //If not found, return -1
 	pthread_mutex_unlock(&inode_list);
@@ -170,13 +176,13 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 
 	int index = find_file(name);
 	pthread_mutex_lock(&inode_list);
-	if(index < 0 || start_byte >= inodes[index].size) {
+	if(index < 0 || start_byte > inodes[index].size) {
 		printf("File \"%s\" not found!\n",name);
 		pthread_mutex_unlock(&inode_list);
 		return;
 	}
 
-	char* data = (buffer)?buffer:malloc( (num_bytes + 1) / block_size * block_size);  //not an exact ceil, but memory is cheap and floatng point ops are not
+	char* data = (buffer)?buffer:malloc( (num_bytes / block_size + 1) * block_size);  //not an exact ceil, but memory is cheap and floatng point ops are not
 
 	int i;
 	if(!buffer){

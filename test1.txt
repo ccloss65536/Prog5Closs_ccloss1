@@ -6,3 +6,4 @@ LIST
 WRITE lol.txt 512 666
 LIST
 CAT lol.txt
+SHUTDOWN
