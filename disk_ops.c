@@ -10,9 +10,12 @@
 
 //Puts a request for the disk scheduler into the array
 void request(block_ptr block, void* buffer, char read_write){
-	pthread_mutex_lock(&request_condition_mutex);
-	while(num_requests >= max_requests) pthread_cond_wait(&request_empty, &request_condition_mutex);
-	num_requests++;
+	//pthread_mutex_lock(&request_condition_mutex);
+	//while(num_requests >= max_requests) pthread_cond_wait(&request_empty, &request_condition_mutex);
+	sem_wait(&request_empty);
+	//printf("Uhhhhhhhhhhh...\n");
+	sem_wait(&request_condition_mutex);
+	//printf("Why does this not work!?!?!?!?\n");
 
 	int oldrequest = next_free_request;
 	printf("In: %d\n", oldrequest); 
@@ -22,16 +25,17 @@ void request(block_ptr block, void* buffer, char read_write){
 	newRequest.buffer = buffer;
 	newRequest.read_write = read_write;
 	pending[next_free_request] = newRequest;
-	printf("Write to array\n");
+	//printf("Write to array\n");
 	next_free_request = (next_free_request + 1) % max_requests;
-
-	pthread_cond_signal(&request_fill);
-	printf("We signaled\n");
-	pthread_mutex_unlock(&request_condition_mutex);
-
-	printf("Number of requests: %d\n",num_requests); 
+	
+	sem_post(&request_condition_mutex);
+	sem_post(&request_full);
+	//printf("We signaled\n");
+	//pthread_mutex_unlock(&request_condition_mutex);
+	//printf("Number of requests: %d\n",num_requests); 
 	pthread_mutex_lock(&request_fufilled_mutex);
-	pthread_cond_wait(&request_fufilled[oldrequest], &request_fufilled_mutex);
+	while(wakeup_arr[oldrequest] < 1) pthread_cond_wait(&request_fufilled[oldrequest], &request_fufilled_mutex);
+	wakeup_arr[oldrequest] = 0;
 	pthread_mutex_unlock(&request_fufilled_mutex);
 
 }
@@ -41,8 +45,8 @@ int find_free_block(){
 	pthread_mutex_lock(&free_block_list);
 	int i = 0;
 	int free_block;
-	for(; i < num_blocks/8; i++){
-		if((free_bitfield[num_blocks/8] & (1 << (i % 8))) == 0){
+	for(; i < num_blocks; i++){
+		if((free_bitfield[i/8] & (1 << (i % 8))) == 0){
 			free_block = i;
 			free_bitfield[num_blocks/8] |= (1 << (i % 8));
 		}
@@ -67,7 +71,6 @@ int find_file(char* name){
 }
 
 void create(char* name){
-	pthread_mutex_lock(&inode_list);//another thread could be creating a file and editting the inode list
 
 	inode newFileInode;
 	strcpy(newFileInode.name, name);
@@ -77,10 +80,13 @@ void create(char* name){
 		printf("Error: max number of files reached\n");
 		return;
 	}
+	//Moved to avoid holding the mutex and returning if there are 256 files
+	pthread_mutex_lock(&inode_list);//another thread could be creating a file and editting the inode list
 
 	for(int i =0; i < max_files; i++){
 		if(inodes[i].size == -1){
 			inodes[i] = newFileInode;
+			inodes[i].direct[0] = find_free_block(); //Make sure every file has some space to write into, even if it's curretly empty
 			num_files++;
 			break;
 		}
@@ -135,7 +141,7 @@ void erase(char* name){
 	int* indirect = malloc(block_size);
 	int* double_indirect = malloc(block_size);
 	if(!indirect || !double_indirect){
-		perror("Allocation for read_ssfs failed!: ");
+		perror("Allocation for erase failed!: ");
 		free(indirect);
 		free(double_indirect);
 		exit(-1);
@@ -165,6 +171,7 @@ void erase(char* name){
 		}
 	}
 	pthread_mutex_unlock(&free_block_list);
+	num_files--;
 	free(indirect);
 	free(double_indirect);
 	inodes[index].size = -1;
@@ -238,7 +245,7 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 	int curr_block_ind = start_block_ind;//keep track of which block we need to read from
 	int end_block_ind = (start_byte + num_bytes)/block_size;
 	for(; curr_block_ind < 12 && curr_block_ind <= end_block_ind; curr_block_ind++){
-		request(inodes[index].direct[i], data + curr_block_ind*block_size, 'r');
+		request(inodes[index].direct[i], data + curr_block_ind*block_size, 'w');
 	}
 
 	if(curr_block_ind == 12){//the 0th through 11th blocks are direct blocks
@@ -274,7 +281,7 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 	pthread_mutex_lock(&inode_list);
 	inode file_inode = inodes[index];
 	pthread_mutex_unlock(&inode_list);
-	char* data = malloc( (num_bytes + 1) / block_size * block_size); //not an exact ceil, but memory is cheap and floatng point ops are not
+	char* data = malloc( (num_bytes / block_size + 1) * block_size); //not an exact ceil, but memory is cheap and floatng point ops are not
 	int* indirect = malloc(block_size);
 	int* double_indirect = malloc(block_size);
 	if(!data || !indirect || !double_indirect){
@@ -326,5 +333,5 @@ void list(){
 }
 
 void shutdown(){
-	request(0, NULL, 's');
+	pthread_cond_signal(&request_end);
 }
