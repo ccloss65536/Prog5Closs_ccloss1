@@ -124,7 +124,7 @@ void* readThreadOps(void* threadName){
     } else if(strcmp(commands, "LIST") == 0){
       list();
 
-    } else if(strcmp(lineBuff, "SHUTDOWN") != 0){
+    } else if(strcmp(commands, "SHUTDOWN") == 0){
       shutdown();
       fclose(threadOps);
       pthread_exit(0);
@@ -169,6 +169,7 @@ int main(int argc, char** argv){
   char thread3ops[256];
   char thread4ops[256];
 
+
   pthread_create(&schedThread, NULL, &runner, NULL);
 
   char* usage = "ssfs <disk file name> thread1ops.txt thread2ops.txt thread3ops.txt thread4ops.txt\n";
@@ -200,7 +201,6 @@ int main(int argc, char** argv){
 
   read(diskFile, &num_blocks, 4);
 	read(diskFile, &block_size, 4);
-	free_bitfield = malloc(num_blocks/8);
 	for(int i = 0; i < max_files; i++){
       inodes[i].size = -1;
 	}
@@ -215,6 +215,12 @@ int main(int argc, char** argv){
 		}
 	}
 	lseek(diskFile, 1032, SEEK_SET);
+	free_bitfield = malloc(num_blocks/8 + 1);
+	if(!free_bitfield){
+		perror("Allocation for free block list failed! : ");
+		return -1;
+	}
+
 	read(diskFile, free_bitfield,num_blocks/8);
 
 	if(argc >= 3){ //create one thread

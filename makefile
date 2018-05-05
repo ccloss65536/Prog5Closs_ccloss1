@@ -25,9 +25,6 @@ push:
 	@#and put the entire imput string into an enviroment variable called $REPLY
 $(NAME1): $(NAME1).c common.h disk_ops.c disk_sched.c 
 	$(COMPILE) -c $(FLAGS) disk_ops.c disk_sched.c $(NAME1).c 
-	objdump -d -S $(NAME1).o > ssfs.asm 
-	objdump -d -S disk_sched.o > sched.asm
-	objdump -d -S disk_ops.o > ops.asm
 	$(COMPILE) $(FLAGS) $(NAME1).o disk_ops.o disk_sched.o -o $(NAME1)
 $(NAME2): $(NAME2).c
 	$(COMPILE) -c $(FLAGS) $(NAME2).c

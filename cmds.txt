@@ -1,9 +1,10 @@
 file ssfs 
-break ssfs.c:156
+#break ssfs.c:156
+break disk_ops.c:242
 run TEST test1.txt
-while(request_condition_mutex.__size > 0)
-	n
-	p request_condition_mutex
-	thread 3
-end
-info threads
+#while(request_condition_mutex.__size > 0)
+#	n
+#	p request_condition_mutex
+#end
+#info threads
+

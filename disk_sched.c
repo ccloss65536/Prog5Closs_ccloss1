@@ -11,10 +11,10 @@ int take_request(){
 	//printf("Do we hold the lock? %d\n", num_requests);
 	//while(num_requests <= 0) pthread_cond_wait(&request_fill, &request_condition_mutex);
 	//printf("We escaped the wait\n");
-	printf("??????\n");
+	//printf("??????\n");
 	//sleep(99999);
 	sem_wait(&request_full);
-	printf("Is sched here?\n");
+	//printf("Is sched here?\n");
 	sem_wait(&request_condition_mutex);
 	disk_request next_consumed = pending[next_to_do];
 
@@ -38,11 +38,13 @@ int take_request(){
 }
 
 void write_request(block_ptr bp, void* buffer){
+	printf( "Block %d from  %p\n", bp, buffer);
 	lseek(diskFile, bp*block_size, SEEK_SET);
 	write(diskFile, buffer, block_size);
 }
 
 void read_request(block_ptr bp, void* buffer){
+	printf( "Block %d into %p\n", bp, buffer);
 	lseek(diskFile, bp*block_size, SEEK_SET);
 	printf("It goes here\n");
 	read(diskFile, buffer, block_size);
