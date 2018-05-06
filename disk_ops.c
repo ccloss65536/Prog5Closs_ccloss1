@@ -370,6 +370,7 @@ void shutdown(){
 
 	block_ptr* inodelist = malloc(block_size);
 	int bytes_read = 0;
+	//number of bytes allocated before free bit list
 	int bytes_end = 1032;
 	for(int m = 0; m < ((1032 / block_size) + 1); m++){
 		request(m*block_size, inodelist, 'r');
