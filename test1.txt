@@ -1,10 +1,6 @@
 CREATE lol.txt
 LIST
-WRITE lol.txt a 0 8
-WRITE lol.txt b 1 9
-READ lol.txt 0 9
-LIST 
-WRITE lol.txt n 512 666
+WRITE lol.txt a 0 650
+READ lol.txt 0 650
 LIST
-CAT lol.txt
 SHUTDOWN
