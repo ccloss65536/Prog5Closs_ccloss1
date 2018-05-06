@@ -51,7 +51,7 @@ void shutdown();
 //global variables shared between threads
 #define max_requests (30)
 #define max_files (256)
-int num_requests; //variables now nitialized in ssfs.c
+int num_requests; //variables now initialized in ssfs.c
 int next_free_request;
 int next_to_do;
 disk_request pending[max_requests];
@@ -68,16 +68,13 @@ pthread_mutex_t request_fufilled_mutex;
 pthread_cond_t request_fufilled[max_requests]; //one condition variable for each of the possible indexes. Each thread takes the variable corresponding to the index it inserted a request at.
 pthread_mutex_t request_end_mutex;
 pthread_cond_t request_end;
+pthread_cond_t all_initialized;
+pthread_mutex_t all_initialized_mutex;
 char* free_bitfield; //needs dynamic allocation, b/c its of variable size
 int diskFile; //file descriptor
 int writeFd;
 int readFd;
 int num_blocks;
+char ready;
 char wakeup_arr[max_requests];
-pthread_t opThread1;
-pthread_t opThread2;
-pthread_t opThread3;
-pthread_t opThread4;
-pthread_t schedThread;
-
 //free block list type to come

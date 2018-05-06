@@ -46,9 +46,11 @@ int find_free_block(){
 	int i = 0;
 	int free_block;
 	for(; i < num_blocks; i++){
+		printf("%dth block, bits %d\n", i, free_bitfield[i/8]);
 		if((free_bitfield[i/8] & (1 << (i % 8))) == 0){
 			free_block = i;
-			free_bitfield[num_blocks/8] |= (1 << (i % 8));
+			free_bitfield[i/8] |= (1 << (i % 8));
+			break;
 		}
 	}
 	if(i == num_blocks/8) free_block = -1;
@@ -85,8 +87,11 @@ void create(char* name){
 
 	for(int i =0; i < max_files; i++){
 		if(inodes[i].size == -1){
+			int freeb = find_free_block();
+			newFileInode.direct[0] = freeb;
 			inodes[i] = newFileInode;
-			inodes[i].direct[0] = find_free_block(); //Make sure every file has some space to write into, even if it's curretly empty
+			printf("%d vs. %d", inodes[i].direct[0], freeb);
+			//inodes[i].direct[0] = find_free_block(); //Make sure every file has some splace to write into, even if it's curretly empty
 			num_files++;
 			break;
 		}
@@ -98,7 +103,7 @@ void import(char* new_name, char* unix_name){
 	int unixFile = open(unix_name, O_RDONLY);
 	if(unixFile == -1){
 		perror("Error: Unix file does not exist");
-		exit(1);
+		return;
 	}
 	//if file does not exist create it
 	if(find_file(new_name) == -1){
@@ -184,17 +189,15 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 	int index = find_file(name);
 	pthread_mutex_lock(&inode_list);
 	if(index < 0 || start_byte > inodes[index].size) {
-		printf("File \"%s\" not found!\n",name);
+		printf("File \"%s\" not found or smalle than start byte!\n",name);
 		pthread_mutex_unlock(&inode_list);
 		return;
 	}
+	printf("%d\n, Why isn't this 4????", inodes[index].direct[0] + '0');
 
 	char* data = (buffer)?buffer:malloc( (num_bytes / block_size + 1) * block_size);  //not an exact ceil, but memory is cheap and floatng point ops are not
 
 	int i;
-	if(!buffer){
-		for(i = 0; i < num_bytes; i++) data[i] = input;
-	}
 	int* indirect = malloc(block_size);
 	int* double_indirect = malloc(block_size);
 	if(!data || !indirect || !double_indirect){
@@ -244,8 +247,16 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 	int start_block_ind = start_byte/block_size; //The start byte is in the file's start_block_indth data block
 	int curr_block_ind = start_block_ind;//keep track of which block we need to read from
 	int end_block_ind = (start_byte + num_bytes)/block_size;
+	int chars_written = start_byte;
+	int curr_byte = start_byte;
+
 	for(; curr_block_ind < 12 && curr_block_ind <= end_block_ind; curr_block_ind++){
-		request(inodes[index].direct[i], data + curr_block_ind*block_size, 'w');
+		printf("%d ----- \n", curr_block_ind);
+		if(!buffer && chars_written < num_bytes + start_byte){
+			request(inodes[index].direct[curr_block_ind], data + curr_block_ind*block_size, 'r');
+			while(chars_written < num_bytes + start_byte && (chars_written % block_size) < block_size - 1){
+				data[chars_written
+		request(inodes[index].direct[curr_block_ind], data + curr_block_ind*block_size, 'w');
 	}
 
 	if(curr_block_ind == 12){//the 0th through 11th blocks are direct blocks
@@ -266,6 +277,7 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 			}
 		}
 	}
+	inodes[index].size = (start_byte + num_bytes < inodes[index].size)?inodes[index].size:(inodes[index].size  + num_bytes - start_byte); 
 	pthread_mutex_unlock(&inode_list);
 	write(1 ,data + start_byte, num_bytes);
 	free(data);
