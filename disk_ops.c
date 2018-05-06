@@ -170,7 +170,7 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 
 	int index = find_file(name);
 	pthread_mutex_lock(&inode_list);
-	if(index < 0 || start_byte >= inodes[index].size) {
+	if(index < 0 || start_byte > inodes[index].size) {
 		printf("File \"%s\" not found!\n",name);
 		pthread_mutex_unlock(&inode_list);
 		return;
