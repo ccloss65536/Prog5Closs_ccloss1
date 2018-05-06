@@ -341,22 +341,11 @@ void shutdown(){
 	4. store the data about the inode (which comes from memory) in that inode (on the disk)
 	*/
 
-	/*char fileBuffer[block_size];
-	int i = 0;
-	int bytesRead = read(unixFile, fileBuffer, block_size);
-	while(bytesRead){
-
-		//that way the location is updated based on how much input was taken
-		//if it was a whole block it will add block_size
-		//else it will just add the amount of bytes read
-		write_ssfs(new_name, 'a', i*block_size, bytesRead, fileBuffer);
-		i++;
-		bytesRead = read(unixFile, fileBuffer, block_size);
-	}*/
-
 	char* inodelist = (char*) malloc(((1032/block_size)*block_size) + block_size);
 	char* inodelist2 = (char*) malloc(block_size);
 	char* actualInodeList = (char*) malloc(((1024/block_size)*block_size) + block_size);
+
+	pthread_mutex_lock(&inode_list);
 
 	for(int m = 0; m < (1032/block_size) +1; m++){ //grab first block of inode pointers, and examine them to see if this certain inode is here
 		request(m, inodelist2, 'r');
@@ -364,7 +353,7 @@ void shutdown(){
 	}
 
 	strcpy(actualInodeList, inodelist+2);
-	block_ptr** inodemap = (blockptr**) actualInodeList;
+	block_ptr** inodemap = (block_ptr**) actualInodeList;
 
 	//inodemap contains pointers to each inode
 
@@ -408,6 +397,7 @@ void shutdown(){
 				}
 
 				else{ //if no block on the disk exists for the file, create one and save it and the file's data to the disk
+					pthread_mutex_lock(&free_block_list);
 					int freeblock = find_free_block();
 					int free_block_num = freeblock / block_size;
 					free_bitfield[free_block_num/8 + free_block_num % 8] = 1; //store in the free bit field that this block is in use	
@@ -434,10 +424,14 @@ void shutdown(){
 					strcat(dataBuffer, (char*)ptr4);		
 					
 					request((block_ptr) freeblock, (void*) dataBuffer, 'w'); 
+					pthread_mutex_unlock(&free_block_list);
 				}
 			}
 		}
 	}
+	pthread_mutex_unlock(&inode_list);
+
+	pthread_mutex_lock(&free_block_list);
 
 	char* buffer = (char*) malloc(block_size);
 	block_ptr bitfieldcopy = (block_ptr) atoi(free_bitfield);
@@ -447,6 +441,8 @@ void shutdown(){
 		request(bitfieldcopy, buffer, 'w');
 
 	}
+
+	pthread_mutex_unlock(&free_block_list);
 
 	sleep(1);
 
