@@ -26,7 +26,7 @@ int take_request(){
 
 	
 	int oldnext = next_to_do;
-	//printf("Out: %d\n", oldnext);
+	printf("Out: %d\n", oldnext);
 	next_to_do = (next_to_do + 1) % max_requests;
 	wakeup_arr[oldnext] = 1;
 	sem_post(&request_condition_mutex);

@@ -13,12 +13,12 @@ void request(block_ptr block, void* buffer, char read_write){
 	//pthread_mutex_lock(&request_condition_mutex);
 	//while(num_requests >= max_requests) pthread_cond_wait(&request_empty, &request_condition_mutex);
 	sem_wait(&request_empty);
-	//printf("Uhhhhhhhhhhh...\n");
+	printf("Uhhhhhhhhhhh...\n");
 	sem_wait(&request_condition_mutex);
 	//printf("Why does this not work!?!?!?!?\n");
 
 	int oldrequest = next_free_request;
-	//printf("In: %d\n", oldrequest); 
+	printf("In: %d\n", oldrequest); 
 
 	disk_request newRequest;
 	newRequest.requested = block;
@@ -368,22 +368,30 @@ void shutdown(){
 	block_ptr* inodelist = malloc(block_size);
 	int bytes_read = 0;
 	int bytes_end = 1032;
-	for(int m = 0; m < ((1032 / block_size) + 1); m++){
-		request(m*block_size, inodelist, 'r');
+	for(int m = 0; m < ((1032 / block_size)); m++){
+		request(m , inodelist, 'r');
+		/*for(int f = 0; f < block_size/sizeof(block_ptr); f++){
+			printf("Disk[%d] = %d\n",f,inodelist[f]);
+		}*/
 		block_ptr* currentNodePtr = inodelist;
 		if(m == 0){
 			currentNodePtr++;
 			currentNodePtr++;
 			bytes_read += 2*sizeof(block_ptr);
-			for(int i = 0; i < block_size - 2 && bytes_read < bytes_end; i++){
-				free_bitfield[(*currentNodePtr)/8] &= ~(1 << ((*currentNodePtr) % 8)); //take the original pointer, translate that into the bit for the free block list, zero out that bit
+			for(unsigned int i = 0; i < (block_size/sizeof(block_ptr) - 2) && bytes_read < bytes_end; i++){
+				if( (*currentNodePtr) > -1){
+					free_bitfield[(*currentNodePtr)/8] &= ~(1 << ((*currentNodePtr) % 8)); //take the original pointer, translate that into the bit for the free block list, zero out that bit
+				}
 				currentNodePtr++;
 				bytes_read += sizeof(block_ptr);
 
 			}
 		} else{
-			for(int i = 0; i < block_size && bytes_read < bytes_end; i++){
-				free_bitfield[(*currentNodePtr)/8] &= ~(1 << ((*currentNodePtr) % 8)); //take the original pointer, translate that into the bit for the free block list, zero out that bit
+			for(unsigned int i = 0; i < block_size/sizeof(block_ptr) && bytes_read < bytes_end; i++){
+				//printf("%d %d@%p %p %p\n", i, (*currentNodePtr), currentNodePtr, inodelist, free_bitfield);
+				if( (*currentNodePtr) > -1){
+					free_bitfield[(*currentNodePtr)/8] &= ~(1 << ((*currentNodePtr) % 8)); //take the original pointer, translate that into the bit for the free block list, zero out that bit
+				}
 				currentNodePtr++;
 				bytes_read += sizeof(block_ptr);
 			}
@@ -419,7 +427,7 @@ void shutdown(){
 	pthread_mutex_unlock(&free_block_list);
 	pthread_mutex_unlock(&inode_list);
 
-	sleep(1);
-
+	//sleep(1);
+	printf("Are we requesting shutdown\n");
 	request(0, NULL, 's');
 }
