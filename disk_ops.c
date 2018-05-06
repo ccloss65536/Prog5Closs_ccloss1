@@ -335,114 +335,68 @@ void list(){
 void shutdown(){
 
 	/* STEPS:
-	1. get inode map pointers
-	2. for each file, check each pointer, to find the pointer that corresponds to that exact file
-	3. if no inode exists with the same name, then create one
-	4. store the data about the inode (which comes from memory) in that inode (on the disk)
+	1. get inode block pointers (1 per)
+	2. for each inode, zero it out (including the indirect and double indirect pointers), then zero out free block list bit for that block
+	3. for each file in the memory, create an inode and store the data there
 	*/
 
-	char* inodelist = (char*) malloc(((1032/block_size)*block_size) + block_size);
-	char* inodelist2 = (char*) malloc(block_size);
-	char* actualInodeList = (char*) malloc(((1024/block_size)*block_size) + block_size);
-
 	pthread_mutex_lock(&inode_list);
+	pthread_mutex_lock(&free_block_list);
 
-	for(int m = 0; m < (1032/block_size) +1; m++){ //grab first block of inode pointers, and examine them to see if this certain inode is here
-		request(m, inodelist2, 'r');
-		strcat(inodelist, inodelist2);
-	}
+	char* zero = malloc(block_size);
+	*zero = '0';
 
-	strcpy(actualInodeList, inodelist+2);
-	block_ptr** inodemap = (block_ptr**) actualInodeList;
-
-	//inodemap contains pointers to each inode
-
-	for(int i = 0; i < 256; i++){	//for every file...
-		if(inodes[i].size != -1){	//if the file exists (in memory)
-
-			for(int j = 0; j < 256; j++){ 
-
-				block_ptr currentInodeBlockPtr = *(inodemap[j]);
-
-				char* currentInodeData = malloc(block_size); //grab one block of inode pointers at a time
-				request(currentInodeBlockPtr, currentInodeData, 'r');
-				inode currentInode = *((inode*) currentInodeData);
-
-				if(currentInode.size != 0){ //if the block for the file exists on disk
-
-					if(strcmp(inodes[i].name, currentInode.name) == 0){ //if the inode pointer matches the file that we're storing
-						char* dataBuffer = malloc(block_size);				//store the data about the file
-						
-						char* ptr1 = malloc(32);
-						ptr1 = &inodes[i].name[0];
-						strcat(dataBuffer, ptr1);
-
-						int* ptr2 = malloc(4);					
-						for(int k = 0; k < 12; k++){
-							*ptr2 = inodes[i].direct[k];
-							strcat(dataBuffer, (char*)ptr2);
-						}
-
-						int* ptr3 = malloc(4);
-						*ptr3 = inodes[i].indirect;
-
-						int* ptr4 = malloc(4);
-						*ptr4 = inodes[i].double_indirect;
-
-						strcat(dataBuffer, (char*)ptr3);
-						strcat(dataBuffer, (char*)ptr4);
-
-						request(currentInodeBlockPtr, (void*) dataBuffer, 'w'); //write said data to the actual inode pointer on the disk
-					}
-				}
-
-				else{ //if no block on the disk exists for the file, create one and save it and the file's data to the disk
-					pthread_mutex_lock(&free_block_list);
-					int freeblock = find_free_block();
-					int free_block_num = freeblock / block_size;
-					free_bitfield[free_block_num/8 + free_block_num % 8] = 1; //store in the free bit field that this block is in use	
-
-					char* dataBuffer = malloc(block_size);				//store the data about the file
-						
-					char* ptr1 = malloc(32);
-					ptr1 = &inodes[i].name[0];
-					strcat(dataBuffer, ptr1);
-
-					int* ptr2 = malloc(4);					
-					for(int k = 0; k < 12; k++){
-						*ptr2 = inodes[i].direct[k];
-						strcat(dataBuffer, (char*)ptr2);
-					}
-
-					int* ptr3 = malloc(4);
-					*ptr3 = inodes[i].indirect;
-
-					int* ptr4 = malloc(4);
-					*ptr4 = inodes[i].double_indirect;
-
-					strcat(dataBuffer, (char*)ptr3);
-					strcat(dataBuffer, (char*)ptr4);		
-					
-					request((block_ptr) freeblock, (void*) dataBuffer, 'w'); 
-					pthread_mutex_unlock(&free_block_list);
-				}
+	char* inodelist = (char*) malloc(block_size);
+	for(int m = 0; i < ((1032 / block_size) + 1); i++){
+		request(m*block_size, inodelist, 'r');
+		block_ptr currentNodePtr = (block_ptr) inodelist;
+		if(m == 0){
+			currentNodePtr++;
+			currentNodePtr++;
+			for(int i = 0; i < block_size - 2; i++){
+				char* currNode = (char*) malloc(block_size);
+				request(currentNodePtr, currNode, 'r');
+				//characters 32 thru 92 make up the 15 numbers in the inode. need a way to translate each 4 characters into another number
+				//need to dereference indirect and double indirect pointers
+				//assign char* zero to them
+				for(int j = 0; j < block_size; j++) currNode[j] = '\7'; //zero out inode
+				free_bitfield[currentNodePtr/8] &= ~(1 << (currentNodePtr % 8)); //take the original pointer, translate that into the bit for the free block list, zero out that bit
+			}
+		} else{
+			for(int i = 0; i < block_size - 2; i++){
+				char* currNode = (char*) malloc(block_size);
+				request(currentNodePtr, currNode, 'r');
+				//characters 32 thru 92 make up the 15 numbers in the inode. need a way to translate each 4 characters into another number
+				//need to dereference indirect and double indirect pointers
+				//assign char* zero to them
+				for(int j = 0; j < block_size; j++) currNode[j] = '\7'; //zero out inode
+				free_bitfield[currentNodePtr/8] &= ~(1 << (currentNodePtr % 8)); //take the original pointer, translate that into the bit for the free block list, zero out that bit
 			}
 		}
 	}
-	pthread_mutex_unlock(&inode_list);
+	
+	for(int i = 0; i < 256; i++){
+		//assign the free block to a spot:
+		block_ptr free_block = (block_ptr)find_free_block();
+		inode* buffer = (inode*) malloc(block_size);
+		*buffer = inodes[i];
+		request(free_block, (void*) buffer, 'w');
 
-	pthread_mutex_lock(&free_block_list);
+		//mark that particular bit in the free bitfield as being used:
+		free_bitfield[free_block/8] &= ~(1 << (free_block % 8));
+	}
 
+	//write the new bitfield to disk
 	char* buffer = (char*) malloc(block_size);
 	block_ptr bitfieldcopy = (block_ptr) atoi(free_bitfield);
 	for(int i = 0; i < num_blocks/8; i++){
 		buffer = free_bitfield + i*block_size;
 		bitfieldcopy += i*block_size;
 		request(bitfieldcopy, buffer, 'w');
-
 	}
 
 	pthread_mutex_unlock(&free_block_list);
+	pthread_mutex_unlock(&inode_list);
 
 	sleep(1);
 
