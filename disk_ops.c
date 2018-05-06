@@ -13,7 +13,7 @@ void request(block_ptr block, void* buffer, char read_write){
 	//pthread_mutex_lock(&request_condition_mutex);
 	//while(num_requests >= max_requests) pthread_cond_wait(&request_empty, &request_condition_mutex);
 	sem_wait(&request_empty);
-	printf("Uhhhhhhhhhhh...\n");
+	//printf("Uhhhhhhhhhhh...\n");
 	sem_wait(&request_condition_mutex);
 	//printf("Why does this not work!?!?!?!?\n");
 
@@ -253,9 +253,7 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 	}
 	if(!buffer){
 		int g;
-		pthread_mutex_unlock(&inode_list); //read grabs the lock, and we can't grab the same lock twice without unlocking
 		read_ssfs(name, start_byte, num_bytes, data);
-		pthread_mutex_lock(&inode_list);
 		for(g = 0; g < num_bytes; g++) data[g + start_byte] = input;
 	}
 	int start_block_ind = start_byte/block_size; //The start byte is in the file's start_block_indth data block
@@ -402,7 +400,7 @@ void shutdown(){
 			}
 		}
 	}
-
+	printf("Do we even get here???????\n");
 	for(int i = 0; i < 256; i++){
 		//assign the free block to a spot:
 		block_ptr free_block = (block_ptr)find_free_block();
@@ -413,13 +411,14 @@ void shutdown(){
 		//mark that particular bit in the free bitfield as being used:
 		free_bitfield[free_block/8] |= (1 << (free_block % 8));
 	}
-
+	printf("How about here?\n");
 	//write the new bitfield to disk
 	char* buffer = (char*) malloc(block_size);
 	block_ptr bitfield_start_block = 1032 / block_size;
 	int bitfield_curr_byte = 1032;
 	request(bitfield_start_block, buffer, 'r'); //get the entire block the bitfield starts at so we don't overwrite it with uninitialized data from buffer
 	for(int i = 0; i < num_blocks/8; i++){
+		printf("%d oh no\n", i);
 		buffer[bitfield_curr_byte % block_size] = free_bitfield[i];
 		bitfield_curr_byte++;
 		if(bitfield_curr_byte % block_size == 0){

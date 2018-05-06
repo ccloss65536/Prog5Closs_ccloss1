@@ -159,8 +159,11 @@ int main(int argc, char** argv){
 	sem_init(&request_empty, 0, max_requests);
 	sem_init(&request_full, 0, 0);
 	sem_init(&request_condition_mutex, 0 , 1);
-	pthread_mutex_init(&inode_list, NULL);
-	pthread_mutex_init(&free_block_list, NULL);;
+	pthread_mutexattr_t recursive;
+	pthread_mutexattr_init(&recursive);
+	pthread_mutexattr_settype(&recursive, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&inode_list, &recursive);
+	pthread_mutex_init(&free_block_list, &recursive);
 	pthread_mutex_init(&request_fufilled_mutex, NULL);
 	pthread_mutex_init(&request_end_mutex, NULL);
 	pthread_cond_init(&request_end, NULL);
@@ -256,6 +259,7 @@ int main(int argc, char** argv){
 
   pthread_mutex_lock(&request_end_mutex);
   pthread_cond_wait(&request_end, &request_end_mutex);
+	pthread_mutex_unlock(&request_end_mutex);
 
   if(argc >= 3){
     pthread_cancel(opThread1);
