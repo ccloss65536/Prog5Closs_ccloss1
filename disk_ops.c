@@ -333,5 +333,64 @@ void list(){
 }
 
 void shutdown(){
-	pthread_cond_signal(&request_end);
+
+	char* inodelist2 = (char*) malloc(((1032/block_size)*block_size) + block_size);
+	for(int i = 0; i < (1032/block_size) +1; i++){
+		request(i, inodelist2, 'r');
+	}
+	inode** inodelist = (inode**) inodelist2;
+
+	for(int i = 0; i < 256; i++){	//for every file...
+		if(inodes[i].size != -1){	//if the file exists (in memory)
+			for(int j = 0; j < 256; j++){ //must go to disk pointers for inode
+
+				inode* currentInode = inodelist[2 + j];
+
+				char* currentInodeData = malloc(block_size); //grab one block of inode pointers at a time
+				request((block_ptr)(currentInode), currentInodeData, 'r');
+				inode currentInodeBlock = *((inode*) currentInodeData);
+
+				if(currentInodeBlock.size != 0){ //if the block for the file exists on disk
+
+					if(strcmp(inodes[i].name, currentInodeBlock.name) == 0){ //if the inode pointer matches the file that we're storing
+						char* dataBuffer = malloc(block_size);				//store the data about the file
+						strcat(dataBuffer, (char*)inodes[i].name);
+						for(int k = 0; k < 12; k++){
+							strcat(dataBuffer, (char*)inodes[i].direct[k]);
+						}
+						strcat(dataBuffer, (char*)inodes[i].indirect);
+						strcat(dataBuffer, (char*)inodes[i].double_indirect);
+						request((block_ptr) currentInode, dataBuffer, 'w'); //write said data to the actual inode pointer on the disk
+					}
+				}
+
+				else{ //if no block on the disk exists for the file, create one and save it and the file's data to the disk
+					int freeblock = find_free_block();
+					int free_block_num = freeblock / block_size;
+					free_bitfield[free_block_num/8 + free_block_num % 8] = 1; //store in the free bit field that this block is in use
+					char* dataBuffer = malloc(block_size);				
+					strcat(dataBuffer, (char*)inodes[i].name);
+					for(int k = 0; k < 12; k++){
+						strcat(dataBuffer, (char*)inodes[i].direct[k]);
+					}
+					strcat(dataBuffer, (char*)inodes[i].indirect);
+					strcat(dataBuffer, (char*)inodes[i].double_indirect);
+					request((block_ptr) freeblock, dataBuffer, 'w'); 
+				}
+			}
+		}
+	}
+
+	char* buffer = (char*) malloc(block_size);
+	char* bitfieldcopy = free_bitfield;
+	for(int i = 0; i < num_blocks/8; i++){
+		buffer = free_bitfield + i*block_size;
+		bitfieldcopy += i*block_size;
+		request((block_ptr)bitfieldcopy, buffer, 'w');
+
+	}
+
+	sleep(5);
+
+	request(0, NULL, 's');
 }

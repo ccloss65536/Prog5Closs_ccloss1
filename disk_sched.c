@@ -52,5 +52,6 @@ void read_request(block_ptr bp, void* buffer){
 
 void* runner(){
 	while(take_request());
+	pthread_cond_signal(&request_end);
 	pthread_exit(0);
 }

@@ -57,7 +57,7 @@ void* readThreadOps(void* threadName){
       //-1 when file does not exist
       if(find_file(newFileName) != -1){
         perror("Error: Could not create file because file already exists.\n");
-        exit(1);
+        continue;
       }
       //if it reaches this point then the file is not on disk so create it
 
@@ -245,6 +245,7 @@ int main(int argc, char** argv){
   pthread_cond_wait(&request_end, &request_end_mutex);
 
   if(argc >= 3){
+    pthread_cancel(opThread1);
     pthread_join(opThread1, NULL);
     if(argc >= 4){ //only join a thread if we created it earlier{
       pthread_cancel(opThread2);
@@ -263,5 +264,6 @@ int main(int argc, char** argv){
     exit(1);
   }
   pthread_join(schedThread, NULL);
+  printf("Successfully shutdown\n");
   return 0;
 }
