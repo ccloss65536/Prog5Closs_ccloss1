@@ -24,7 +24,7 @@
 
 void* readThreadOps(void* threadName){
   FILE* threadOps;
-  char lineBuff[1024];
+  //char lineBuff[1024];
   //string* operations = {"CREATE","IMPORT","CAT","DELETE","WRITE","READ","LIST","SHUTDOWN"};
   //converts the thread name to a string and opens it for reading
   char* nameOfThread = (char*) threadName;

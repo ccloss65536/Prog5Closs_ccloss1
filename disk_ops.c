@@ -354,28 +354,57 @@ void shutdown(){
 
 					if(strcmp(inodes[i].name, currentInodeBlock.name) == 0){ //if the inode pointer matches the file that we're storing
 						char* dataBuffer = malloc(block_size);				//store the data about the file
-						strcat(dataBuffer, (char*)inodes[i].name);
+						
+						char* ptr1 = malloc(32);
+						ptr1 = &inodes[i].name[0];
+						strcat(dataBuffer, ptr1);
+
+						int* ptr2 = malloc(4);					
 						for(int k = 0; k < 12; k++){
-							strcat(dataBuffer, (char*)inodes[i].direct[k]);
+							*ptr2 = inodes[i].direct[k];
+							strcat(dataBuffer, (char*)ptr2);
 						}
-						strcat(dataBuffer, (char*)inodes[i].indirect);
-						strcat(dataBuffer, (char*)inodes[i].double_indirect);
-						request((block_ptr) currentInode, dataBuffer, 'w'); //write said data to the actual inode pointer on the disk
+
+						int* ptr3 = malloc(4);
+						*ptr3 = inodes[i].indirect;
+
+						int* ptr4 = malloc(4);
+						*ptr4 = inodes[i].double_indirect;
+
+						strcat(dataBuffer, (char*)ptr3);
+						strcat(dataBuffer, (char*)ptr4);
+
+						request((block_ptr) currentInode, (void*) dataBuffer, 'w'); //write said data to the actual inode pointer on the disk
 					}
 				}
 
 				else{ //if no block on the disk exists for the file, create one and save it and the file's data to the disk
 					int freeblock = find_free_block();
 					int free_block_num = freeblock / block_size;
-					free_bitfield[free_block_num/8 + free_block_num % 8] = 1; //store in the free bit field that this block is in use
-					char* dataBuffer = malloc(block_size);				
-					strcat(dataBuffer, (char*)inodes[i].name);
+					free_bitfield[free_block_num/8 + free_block_num % 8] = 1; //store in the free bit field that this block is in use	
+
+					char* dataBuffer = malloc(block_size);				//store the data about the file
+						
+					char* ptr1 = malloc(32);
+					ptr1 = &inodes[i].name[0];
+					strcat(dataBuffer, ptr1);
+
+					int* ptr2 = malloc(4);					
 					for(int k = 0; k < 12; k++){
-						strcat(dataBuffer, (char*)inodes[i].direct[k]);
+						*ptr2 = inodes[i].direct[k];
+						strcat(dataBuffer, (char*)ptr2);
 					}
-					strcat(dataBuffer, (char*)inodes[i].indirect);
-					strcat(dataBuffer, (char*)inodes[i].double_indirect);
-					request((block_ptr) freeblock, dataBuffer, 'w'); 
+
+					int* ptr3 = malloc(4);
+					*ptr3 = inodes[i].indirect;
+
+					int* ptr4 = malloc(4);
+					*ptr4 = inodes[i].double_indirect;
+
+					strcat(dataBuffer, (char*)ptr3);
+					strcat(dataBuffer, (char*)ptr4);		
+					
+					request((block_ptr) freeblock, (void*) dataBuffer, 'w'); 
 				}
 			}
 		}
