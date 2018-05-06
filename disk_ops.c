@@ -344,7 +344,7 @@ void shutdown(){
 		if(inodes[i].size != -1){	//if the file exists (in memory)
 			for(int j = 0; j < 256; j++){ //must go to disk pointers for inode
 
-				inode* currentInode = inodelist[2 + j];
+				int* currentInode = (int*)inodelist[2 + j];
 
 				char* currentInodeData = malloc(block_size); //grab one block of inode pointers at a time
 				request((block_ptr)(currentInode), currentInodeData, 'r');
