@@ -282,6 +282,6 @@ int main(int argc, char** argv){
     exit(1);
   }
   pthread_join(schedThread, NULL);
-  printf("Successfully shutdown\n");
+  //printf("Successfully shutdown\n");
   return 0;
 }

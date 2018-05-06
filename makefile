@@ -12,6 +12,8 @@ DEBUG_OPTS = --silent -x cmds.txt
 all: $(NAME1)
 test: new $(NAME1)
 	valgrind --tool=helgrind ./$(NAME1) TEST test1.txt
+bigtest: new $(NAME1)
+	valgrind ./$(NAME1) TEST test_large.txt > tree_retrieved.jpg
 debug: new $(NAME1)
 	gdb $(DEBUG_OPTS)
 common: common.c
