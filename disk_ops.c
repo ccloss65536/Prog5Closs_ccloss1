@@ -18,7 +18,9 @@ void request(block_ptr block, void* buffer, char read_write){
 	//printf("Why does this not work!?!?!?!?\n");
 
 	int oldrequest = next_free_request;
+
 	printf("In: %d\n", oldrequest); 
+
 
 	disk_request newRequest;
 	newRequest.requested = block;
@@ -27,12 +29,12 @@ void request(block_ptr block, void* buffer, char read_write){
 	pending[next_free_request] = newRequest;
 	//printf("Write to array\n");
 	next_free_request = (next_free_request + 1) % max_requests;
-	
+
 	sem_post(&request_condition_mutex);
 	sem_post(&request_full);
 	//printf("We signaled\n");
 	//pthread_mutex_unlock(&request_condition_mutex);
-	//printf("Number of requests: %d\n",num_requests); 
+	//printf("Number of requests: %d\n",num_requests);
 	pthread_mutex_lock(&request_fufilled_mutex);
 	while(wakeup_arr[oldrequest] < 1) pthread_cond_wait(&request_fufilled[oldrequest], &request_fufilled_mutex);
 	wakeup_arr[oldrequest] = 0;
@@ -192,7 +194,10 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 	int index = find_file(name);
 	pthread_mutex_lock(&inode_list);
 	if(index < 0 || start_byte > inodes[index].size) {
+
+
 		printf("File \"%s\" not found or smalle than start byte!\n",name);
+
 		pthread_mutex_unlock(&inode_list);
 		return;
 	}
@@ -279,9 +284,9 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 			}
 		}
 	}
-	inodes[index].size = (start_byte + num_bytes < inodes[index].size)?inodes[index].size:( num_bytes + start_byte); 
+	inodes[index].size = (start_byte + num_bytes < inodes[index].size)?inodes[index].size:( num_bytes + start_byte);
 	pthread_mutex_unlock(&inode_list);
-	
+
 	//write(1 ,data + start_byte, num_bytes);
 	free(data);
 	free(indirect);
@@ -397,7 +402,7 @@ void shutdown(){
 			}
 		}
 	}
-	
+
 	for(int i = 0; i < 256; i++){
 		//assign the free block to a spot:
 		block_ptr free_block = (block_ptr)find_free_block();
@@ -412,7 +417,7 @@ void shutdown(){
 	//write the new bitfield to disk
 	char* buffer = (char*) malloc(block_size);
 	block_ptr bitfield_start_block = 1032 / block_size;
-	int bitfield_curr_byte = 1032; 
+	int bitfield_curr_byte = 1032;
 	request(bitfield_start_block, buffer, 'r'); //get the entire block the bitfield starts at so we don't overwrite it with uninitialized data from buffer
 	for(int i = 0; i < num_blocks/8; i++){
 		buffer[bitfield_curr_byte % block_size] = free_bitfield[i];
