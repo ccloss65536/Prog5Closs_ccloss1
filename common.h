@@ -1,5 +1,6 @@
 #pragma once
 #include <pthread.h>
+#include <semaphore.h>
 
 //types
 typedef int block_ptr;
@@ -31,7 +32,7 @@ void import(char* new_name, char* unix_name);
 void cat(char* name);
 void erase(char* name);
 void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buffer);
-void read_ssfs(char* name, int start_byte, int num_bytes);
+void read_ssfs(char* name, int start_byte, int num_bytes, char* buffer); //read now writes what it read into the buffer to help write write into the middle of afile
 void list();
 void shutdown();
 //not command functions
@@ -50,7 +51,7 @@ void shutdown();
 //global variables shared between threads
 #define max_requests (30)
 #define max_files (256)
-int num_requests; //variables now nitialized in ssfs.c
+int num_requests; //variables now initialized in ssfs.c
 int next_free_request;
 int next_to_do;
 disk_request pending[max_requests];
@@ -58,20 +59,22 @@ inode inodes[max_files];
 int num_files;
 int block_size;
 int free_space;
-pthread_cond_t request_empty;
-pthread_cond_t request_fill; 
-pthread_mutex_t request_condition_mutex;
+sem_t request_empty;
+sem_t request_full; 
+sem_t request_condition_mutex;
 pthread_mutex_t inode_list;
 pthread_mutex_t free_block_list;
 pthread_mutex_t request_fufilled_mutex;
 pthread_cond_t request_fufilled[max_requests]; //one condition variable for each of the possible indexes. Each thread takes the variable corresponding to the index it inserted a request at.
 pthread_mutex_t request_end_mutex;
 pthread_cond_t request_end;
+pthread_cond_t all_initialized;
+pthread_mutex_t all_initialized_mutex;
 char* free_bitfield; //needs dynamic allocation, b/c its of variable size
 int diskFile; //file descriptor
 int writeFd;
 int readFd;
 int num_blocks;
-
-
+char ready;
+char wakeup_arr[max_requests];
 //free block list type to come

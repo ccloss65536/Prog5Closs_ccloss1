@@ -23,8 +23,12 @@
 // }
 
 void* readThreadOps(void* threadName){
+	pthread_mutex_lock(&all_initialized_mutex);
+	while(!ready) pthread_cond_wait(&all_initialized, &all_initialized_mutex);
+	pthread_mutex_unlock(&all_initialized_mutex); //work around pthread_create corrupting inode list: Load from disk after all pthread_creates done 
+
   FILE* threadOps;
-  char lineBuff[1024];
+  //char lineBuff[1024];
   //string* operations = {"CREATE","IMPORT","CAT","DELETE","WRITE","READ","LIST","SHUTDOWN"};
   //converts the thread name to a string and opens it for reading
   char* nameOfThread = (char*) threadName;
@@ -57,14 +61,16 @@ void* readThreadOps(void* threadName){
       //-1 when file does not exist
       if(find_file(newFileName) != -1){
         perror("Error: Could not create file because file already exists.\n");
-        exit(1);
+        continue;
+
       }
       //if it reaches this point then the file is not on disk so create it
 
 
       //create() function from common.h found in disk_ops.c
       //should we lock before calling to the function?
-      create(newFileName);
+      printf("%s\n", newFileName);
+			create(newFileName);
 
     } else if(strcmp(commands, "IMPORT") == 0){
       char importFileName[32];
@@ -118,13 +124,13 @@ void* readThreadOps(void* threadName){
 
       //write_ssfs() function from common.h found in disk_ops.c
       //should we lock before calling to the function?
-      read_ssfs(writeFileName, startByte, numBytes);
+      read_ssfs(writeFileName, startByte, numBytes, NULL);
 
 
     } else if(strcmp(commands, "LIST") == 0){
       list();
 
-    } else if(strcmp(lineBuff, "SHUTDOWN") != 0){
+    } else if(strcmp(commands, "SHUTDOWN") == 0){
       shutdown();
       fclose(threadOps);
       pthread_exit(0);
@@ -150,17 +156,27 @@ int main(int argc, char** argv){
 	num_requests = 0;
 	next_free_request = 0;
 	next_to_do = 0;
-	pthread_cond_init(&request_empty, NULL);
-	pthread_cond_init(&request_fill, NULL);
-	pthread_mutex_init(&request_condition_mutex, NULL);
+	sem_init(&request_empty, 0, max_requests);
+	sem_init(&request_full, 0, 0);
+	sem_init(&request_condition_mutex, 0 , 1);
 	pthread_mutex_init(&inode_list, NULL);
 	pthread_mutex_init(&free_block_list, NULL);;
 	pthread_mutex_init(&request_fufilled_mutex, NULL);
 	pthread_mutex_init(&request_end_mutex, NULL);
 	pthread_cond_init(&request_end, NULL);
+	pthread_cond_init(&all_initialized, NULL);
+	pthread_mutex_init(&all_initialized_mutex, NULL);
+	ready = 0;
 	int p;
+	pthread_t opThread1;
+	pthread_t opThread2;
+	pthread_t opThread3;
+	pthread_t opThread4;
+	pthread_t schedThread;
+  
 	for(p = 0; p < max_requests;p++){
-		pthread_cond_init(&(request_fufilled[p]), NULL); //PTHREAD_COND_INITIALIZER can only be used when declaring a variable
+		pthread_cond_init(&(request_fufilled[p]), NULL); 
+		wakeup_arr[p] = 0;//PTHREAD_COND_INITIALIZER can only be used when declaring a variable
 	}
 
   char thread1ops[256];
@@ -168,10 +184,8 @@ int main(int argc, char** argv){
   char thread3ops[256];
   char thread4ops[256];
 
-  pthread_t opThread1;
-  pthread_t opThread2;
-  pthread_t opThread3;
-  pthread_t opThread4;
+
+  pthread_create(&schedThread, NULL, &runner, NULL);
 
   char* usage = "ssfs <disk file name> thread1ops.txt thread2ops.txt thread3ops.txt thread4ops.txt\n";
 
@@ -183,16 +197,29 @@ int main(int argc, char** argv){
     exit(1);
   }
 
-  pthread_t schedThread;
-  pthread_create(&schedThread, NULL, &runner, NULL);
-
-  //store argv[1] as the disk file name
+	if(argc >= 3){ //create one thread
+    strcpy(thread1ops, argv[2]);
+    pthread_create(&opThread1, NULL, readThreadOps, (void*) thread1ops);
+  }
+  if(argc >= 4){ //create another thread
+    strcpy(thread2ops, argv[3]);
+    pthread_create(&opThread2, NULL, readThreadOps, (void*) thread2ops);
+  }
+  if(argc >= 5){ //create another thread
+    strcpy(thread3ops, argv[4]);
+    pthread_create(&opThread3, NULL, readThreadOps, (void*) thread3ops);
+  }
+  if(argc == 6){ //create another thread
+    strcpy(thread4ops, argv[5]);
+    pthread_create(&opThread4, NULL, readThreadOps, (void*) thread4ops);
+  }
+	  //store argv[1] as the disk file name
   char* diskName = argv[1];
 
 
   //Open file for reading and writing
 
-
+	pthread_mutex_lock(&all_initialized_mutex);
   diskFile = open(diskName, O_RDWR);
 
 
@@ -202,7 +229,6 @@ int main(int argc, char** argv){
 
   read(diskFile, &num_blocks, 4);
 	read(diskFile, &block_size, 4);
-	free_bitfield = malloc(num_blocks/8);
 	for(int i = 0; i < max_files; i++){
       inodes[i].size = -1;
 	}
@@ -213,34 +239,26 @@ int main(int argc, char** argv){
 		read(diskFile, &block_num, 4);
 		if(block_num > 0){
 			lseek(diskFile, block_num * block_size, SEEK_SET);
-			read(diskFile, &inodes[q], 4);
+			read(diskFile, &inodes[q], sizeof(inode));
 		}
 	}
+	lseek(diskFile, 1032, SEEK_SET);
+	free_bitfield = malloc(num_blocks/8 + 1);
+	if(!free_bitfield){
+		perror("Allocation for free block list failed! : ");
+		return -1;
+	}
 
-	read(diskFile, &free_bitfield,num_blocks/8);
-
-	if(argc >= 3){ //create one thread
-    strcpy(thread1ops, argv[2]);
-    pthread_create(&opThread1, NULL, &readThreadOps, (void*) thread1ops);
-  }
-  if(argc >= 4){ //create another thread
-    strcpy(thread2ops, argv[3]);
-    pthread_create(&opThread2, NULL, &readThreadOps, (void*) thread2ops);
-  }
-  if(argc >= 5){ //create another thread
-    strcpy(thread3ops, argv[4]);
-    pthread_create(&opThread3, NULL, &readThreadOps, (void*) thread3ops);
-  }
-  if(argc == 6){ //create another thread
-    strcpy(thread4ops, argv[5]);
-    pthread_create(&opThread4, NULL, &readThreadOps, (void*) thread4ops);
-  }
-  close(diskFile);
+	read(diskFile, free_bitfield,num_blocks/8);
+	pthread_cond_broadcast(&all_initialized); //unblock all threads that are waiting on the condition
+	ready = 1;
+	pthread_mutex_unlock(&all_initialized_mutex);
 
   pthread_mutex_lock(&request_end_mutex);
   pthread_cond_wait(&request_end, &request_end_mutex);
 
   if(argc >= 3){
+    pthread_cancel(opThread1);
     pthread_join(opThread1, NULL);
     if(argc >= 4){ //only join a thread if we created it earlier{
       pthread_cancel(opThread2);
@@ -254,10 +272,12 @@ int main(int argc, char** argv){
     		}
     	}
     }
+	close(diskFile);
   } else{
     perror("Error: No threads have been requested\n");
     exit(1);
   }
   pthread_join(schedThread, NULL);
+  printf("Successfully shutdown\n");
   return 0;
 }
