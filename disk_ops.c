@@ -19,7 +19,7 @@ void request(block_ptr block, void* buffer, char read_write){
 
 	int oldrequest = next_free_request;
 
-	printf("In: %d\n", oldrequest); 
+	//printf("In: %d\n", oldrequest); 
 
 
 	disk_request newRequest;
@@ -135,7 +135,7 @@ void cat(char* name){
 		printf("File \"%s\" not found!\n",name);
 		return;
 	}
-	printf("File is of size: %d!!!!\n", inodes[index].size);
+	//printf("File is of size: %d!!!!\n", inodes[index].size);
 	read_ssfs(name, 0, inodes[index].size, NULL);
 }
 void erase(char* name){
@@ -220,24 +220,32 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 	inode file_inode = inodes[index];
 	int ptrs_per_block = block_size/sizeof(block_ptr);
 	int old_end_block = file_inode.size / block_size;
+	int old_end_copy = old_end_block;
 	int new_end_block = (start_byte + num_bytes) / block_size;
 	for(;old_end_block < new_end_block && old_end_block < 12; old_end_block++){
 		inodes[index].direct[old_end_block] = find_free_block();
 	}
-	if(new_end_block >= 12 && new_end_block < 12 + ptrs_per_block ){ //no point in editing the indirect block if it doesn't have the end of the file
-		request(inodes[index].indirect, indirect, 'r'); //We need to keep the old data
-		for(;old_end_block < new_end_block;old_end_block++){
-			indirect[old_end_block - 12] = find_free_block();
-		}
-		request(inodes[index].indirect, indirect, 'w');
+	if(old_end_copy < 12 && new_end_block >= 12){
+		inodes[index].indirect = find_free_block();
+	}
+	request(inodes[index].indirect, indirect, 'r'); //We need to keep the old data
+	for(;old_end_block < new_end_block && old_end_block < 12 + ptrs_per_block;old_end_block++){
+		indirect[old_end_block - 12] = find_free_block();
+	}
+	request(inodes[index].indirect, indirect, 'w');
+	fprintf(stderr, "Single indirects complete!\n");
+	if(new_end_block >= 12 + ptrs_per_block && old_end_copy < 12  + ptrs_per_block){
+		inodes[index].double_indirect = find_free_block();
 	}
 	if(old_end_block >= 12 + ptrs_per_block){
+		fprintf(stderr, "Please go here!!!\n");
 		request(inodes[index].double_indirect, double_indirect, 'r');
-		int new_dbl_blk = (new_end_block - 12 - ptrs_per_block)/block_size/block_size;
-		int old_dbl_blk = (old_end_block - 12 - ptrs_per_block)/block_size/block_size;
+		int new_dbl_blk = (new_end_block - 12 - ptrs_per_block)/block_size;
+		int old_dbl_blk = (old_end_block - 12 - ptrs_per_block)/block_size;
 		int k = old_dbl_blk;
 		for(;k < new_dbl_blk; k++){
 			double_indirect[k] = find_free_block();
+			fprintf(stderr, "%d is an indirect allocated block\n", double_indirect[k]);
 		}
 		request(inodes[index].double_indirect, double_indirect, 'w');
 		while(old_dbl_blk < new_dbl_blk){
@@ -245,6 +253,7 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 			for(m = 0; m < ptrs_per_block && old_end_block < new_end_block; m++){
 				old_end_block++;
 				indirect[m] = find_free_block();
+				fprintf(stderr, "%d is an direct allocated block\n", indirect[m]);
 			}
 			request(double_indirect[old_dbl_blk], indirect, 'w');
 			old_dbl_blk++;
@@ -277,6 +286,7 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 		while(curr_block_ind < indirect_end_block + ptrs_per_block*ptrs_per_block){
 			request(double_indirect[(curr_block_ind - indirect_end_block) / block_size], indirect, 'r');
 			for(i = 0; i < block_size; i++){
+				//fprintf(stderr, "%d\n ", curr_block_ind - 12);
 				request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'w'); \
 				curr_block_ind++;
 			}
@@ -401,7 +411,7 @@ void shutdown(){
 			}
 		}
 	}
-	printf("Do we even get here???????\n");
+	//printf("Do we even get here???????\n");
 	for(int i = 0; i < 256; i++){
 		//assign the free block to a spot:
 		block_ptr free_block = (block_ptr)find_free_block();
@@ -412,14 +422,14 @@ void shutdown(){
 		//mark that particular bit in the free bitfield as being used:
 		free_bitfield[free_block/8] |= (1 << (free_block % 8));
 	}
-	printf("How about here?\n");
+	//printf("How about here?\n");
 	//write the new bitfield to disk
 	char* buffer = (char*) malloc(block_size);
 	block_ptr bitfield_start_block = 1032 / block_size;
 	int bitfield_curr_byte = 1032;
 	request(bitfield_start_block, buffer, 'r'); //get the entire block the bitfield starts at so we don't overwrite it with uninitialized data from buffer
 	for(int i = 0; i < num_blocks/8; i++){
-		printf("%d oh no\n", i);
+		//printf("%d oh no\n", i);
 		buffer[bitfield_curr_byte % block_size] = free_bitfield[i];
 		bitfield_curr_byte++;
 		if(bitfield_curr_byte % block_size == 0){
@@ -433,6 +443,6 @@ void shutdown(){
 	pthread_mutex_unlock(&inode_list);
 
 	//sleep(1);
-	printf("Are we requesting shutdown\n");
+	//printf("Are we requesting shutdown\n");
 	request(0, NULL, 's');
 }

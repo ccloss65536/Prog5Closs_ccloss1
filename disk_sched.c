@@ -26,25 +26,28 @@ int take_request(){
 
 	
 	int oldnext = next_to_do;
-	printf("Out: %d\n", oldnext);
+	//printf("Out: %d\n", oldnext);
 	next_to_do = (next_to_do + 1) % max_requests;
-	wakeup_arr[oldnext] = 1;
+
 	sem_post(&request_condition_mutex);
 	sem_post(&request_empty);
 	//write(writeFd, &oldnext, sizeof(int));
 	//pthread_cond_signal(&request_empty);
+	pthread_mutex_lock(&request_fufilled_mutex);
+	wakeup_arr[oldnext] = 1;
 	pthread_cond_signal(&request_fufilled[oldnext]);
+	pthread_mutex_unlock(&request_fufilled_mutex);
 	return 1;
 }
 
 void write_request(block_ptr bp, void* buffer){
-	//printf( "Block %d from  %p\n", bp, buffer);
+	fprintf(stderr,  "Block %d from  %p\n", bp, buffer);
 	lseek(diskFile, bp*block_size, SEEK_SET);
 	write(diskFile, buffer, block_size);
 }
 
 void read_request(block_ptr bp, void* buffer){
-	//printf( "Block %d into %p\n", bp, buffer);
+	fprintf( stderr, "Block %d into %p\n", bp, buffer);
 	lseek(diskFile, bp*block_size, SEEK_SET);
 	//printf("It goes here\n");
 	read(diskFile, buffer, block_size);

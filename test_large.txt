@@ -1,0 +1,5 @@
+CREATE eert.test
+WRITE eert.test e 0 530432
+IMPORT tree treeoriginal.jpg
+CAT tree
+SHUTDOWN
