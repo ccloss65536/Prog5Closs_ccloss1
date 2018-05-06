@@ -1,0 +1,9 @@
+CREATE lol.txt
+LIST
+WRITE lol.txt a 0 8
+WRITE lol.txt b 1 9
+LIST 
+WRITE lol.txt n 512 666
+LIST
+CAT lol.txt
+SHUTDOWN
