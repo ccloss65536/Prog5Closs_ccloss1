@@ -32,7 +32,7 @@ void import(char* new_name, char* unix_name);
 void cat(char* name);
 void erase(char* name);
 void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buffer);
-void read_ssfs(char* name, int start_byte, int num_bytes);
+void read_ssfs(char* name, int start_byte, int num_bytes, char* buffer); //read now writes what it read into the buffer to help write write into the middle of afile
 void list();
 void shutdown();
 //not command functions

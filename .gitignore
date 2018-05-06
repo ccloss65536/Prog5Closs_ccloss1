@@ -39,6 +39,7 @@
 
 #Apple BS
 .DS_Store
+#project specific
 DISK
 disk
 TEST

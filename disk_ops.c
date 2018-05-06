@@ -46,7 +46,7 @@ int find_free_block(){
 	int i = 0;
 	int free_block;
 	for(; i < num_blocks; i++){
-		printf("%dth block, bits %d\n", i, free_bitfield[i/8]);
+		//printf("%dth block, bits %d\n", i, free_bitfield[i/8]);
 		if((free_bitfield[i/8] & (1 << (i % 8))) == 0){
 			free_block = i;
 			free_bitfield[i/8] |= (1 << (i % 8));
@@ -90,7 +90,7 @@ void create(char* name){
 			int freeb = find_free_block();
 			newFileInode.direct[0] = freeb;
 			inodes[i] = newFileInode;
-			printf("%d vs. %d", inodes[i].direct[0], freeb);
+			//printf("%d vs. %d", inodes[i].direct[0], freeb);
 			//inodes[i].direct[0] = find_free_block(); //Make sure every file has some splace to write into, even if it's curretly empty
 			num_files++;
 			break;
@@ -133,13 +133,16 @@ void cat(char* name){
 		printf("File \"%s\" not found!\n",name);
 		return;
 	}
-	read_ssfs(name, 0, inodes[index].size);
+	printf("File is of size: %d!!!!\n", inodes[index].size);
+	read_ssfs(name, 0, inodes[index].size, NULL);
 }
 void erase(char* name){
 	int index = find_file(name);
 	inode n;
 	if(index > -1){
+		pthread_mutex_lock(&inode_list);
 		n = inodes[index];
+		pthread_mutex_unlock(&inode_list);
 	} else {
 		printf("File %s not found!\n",name);
 	}
@@ -193,7 +196,7 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 		pthread_mutex_unlock(&inode_list);
 		return;
 	}
-	printf("%d\n, Why isn't this 4????", inodes[index].direct[0] + '0');
+	//printf("%d\n, Why isn't this 4????", inodes[index].direct[0] + '0');
 
 	char* data = (buffer)?buffer:malloc( (num_bytes / block_size + 1) * block_size);  //not an exact ceil, but memory is cheap and floatng point ops are not
 
@@ -243,19 +246,18 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 		}
 
 	}
-
+	if(!buffer){
+		int g;
+		pthread_mutex_unlock(&inode_list); //read grabs the lock, and we can't grab the same lock twice without unlocking
+		read_ssfs(name, start_byte, num_bytes, data);
+		pthread_mutex_lock(&inode_list);
+		for(g = 0; g < num_bytes; g++) data[g + start_byte] = input;
+	}
 	int start_block_ind = start_byte/block_size; //The start byte is in the file's start_block_indth data block
 	int curr_block_ind = start_block_ind;//keep track of which block we need to read from
 	int end_block_ind = (start_byte + num_bytes)/block_size;
-	int chars_written = start_byte;
-	int curr_byte = start_byte;
 
 	for(; curr_block_ind < 12 && curr_block_ind <= end_block_ind; curr_block_ind++){
-		printf("%d ----- \n", curr_block_ind);
-		if(!buffer && chars_written < num_bytes + start_byte){
-			request(inodes[index].direct[curr_block_ind], data + curr_block_ind*block_size, 'r');
-			while(chars_written < num_bytes + start_byte && (chars_written % block_size) < block_size - 1){
-				data[chars_written
 		request(inodes[index].direct[curr_block_ind], data + curr_block_ind*block_size, 'w');
 	}
 
@@ -271,20 +273,21 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 		request(inodes[index].double_indirect, double_indirect, 'r');
 		while(curr_block_ind < indirect_end_block + ptrs_per_block*ptrs_per_block){
 			request(double_indirect[(curr_block_ind - indirect_end_block) / block_size], indirect, 'r');
-			for(int i = 0; i < block_size; i++){
+			for(i = 0; i < block_size; i++){
 				request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'w'); \
 				curr_block_ind++;
 			}
 		}
 	}
-	inodes[index].size = (start_byte + num_bytes < inodes[index].size)?inodes[index].size:(inodes[index].size  + num_bytes - start_byte); 
+	inodes[index].size = (start_byte + num_bytes < inodes[index].size)?inodes[index].size:( num_bytes + start_byte); 
 	pthread_mutex_unlock(&inode_list);
-	write(1 ,data + start_byte, num_bytes);
+	
+	//write(1 ,data + start_byte, num_bytes);
 	free(data);
 	free(indirect);
 
 }
-void read_ssfs(char* name, int start_byte, int num_bytes){
+void read_ssfs(char* name, int start_byte, int num_bytes, char* buffer){
 	int index = find_file(name);
 	if(index < 0) {
 		printf("File \"%s\" not found!\n",name);
@@ -329,7 +332,11 @@ void read_ssfs(char* name, int start_byte, int num_bytes){
 			}
 		}
 	}
-	write(1 ,data + start_byte, num_bytes);
+	if (!buffer) write(1 ,data + start_byte, num_bytes);
+	int j = 0;
+	for(j = 0; buffer && j < (num_bytes / block_size + 1) * block_size; j++){
+		buffer[j] = data[j];
+	}
 	free(data);
 	free(indirect);
 }
@@ -358,31 +365,27 @@ void shutdown(){
 	char* zero = malloc(block_size);
 	*zero = '0';
 
-	char* inodelist = (char*) malloc(block_size);
-	for(int m = 0; i < ((1032 / block_size) + 1); i++){
+	block_ptr* inodelist = malloc(block_size);
+	int bytes_read = 0;
+	int bytes_end = 1032;
+	for(int m = 0; m < ((1032 / block_size) + 1); m++){
 		request(m*block_size, inodelist, 'r');
-		block_ptr currentNodePtr = (block_ptr) inodelist;
+		block_ptr* currentNodePtr = inodelist;
 		if(m == 0){
 			currentNodePtr++;
 			currentNodePtr++;
-			for(int i = 0; i < block_size - 2; i++){
-				char* currNode = (char*) malloc(block_size);
-				request(currentNodePtr, currNode, 'r');
-				//characters 32 thru 92 make up the 15 numbers in the inode. need a way to translate each 4 characters into another number
-				//need to dereference indirect and double indirect pointers
-				//assign char* zero to them
-				for(int j = 0; j < block_size; j++) currNode[j] = '\7'; //zero out inode
-				free_bitfield[currentNodePtr/8] &= ~(1 << (currentNodePtr % 8)); //take the original pointer, translate that into the bit for the free block list, zero out that bit
+			bytes_read += 2*sizeof(block_ptr);
+			for(int i = 0; i < block_size - 2 && bytes_read < bytes_end; i++){
+				free_bitfield[(*currentNodePtr)/8] &= ~(1 << ((*currentNodePtr) % 8)); //take the original pointer, translate that into the bit for the free block list, zero out that bit
+				currentNodePtr++;
+				bytes_read += sizeof(block_ptr);
+
 			}
 		} else{
-			for(int i = 0; i < block_size - 2; i++){
-				char* currNode = (char*) malloc(block_size);
-				request(currentNodePtr, currNode, 'r');
-				//characters 32 thru 92 make up the 15 numbers in the inode. need a way to translate each 4 characters into another number
-				//need to dereference indirect and double indirect pointers
-				//assign char* zero to them
-				for(int j = 0; j < block_size; j++) currNode[j] = '\7'; //zero out inode
-				free_bitfield[currentNodePtr/8] &= ~(1 << (currentNodePtr % 8)); //take the original pointer, translate that into the bit for the free block list, zero out that bit
+			for(int i = 0; i < block_size && bytes_read < bytes_end; i++){
+				free_bitfield[(*currentNodePtr)/8] &= ~(1 << ((*currentNodePtr) % 8)); //take the original pointer, translate that into the bit for the free block list, zero out that bit
+				currentNodePtr++;
+				bytes_read += sizeof(block_ptr);
 			}
 		}
 	}
@@ -395,16 +398,22 @@ void shutdown(){
 		request(free_block, (void*) buffer, 'w');
 
 		//mark that particular bit in the free bitfield as being used:
-		free_bitfield[free_block/8] &= ~(1 << (free_block % 8));
+		free_bitfield[free_block/8] |= (1 << (free_block % 8));
 	}
 
 	//write the new bitfield to disk
 	char* buffer = (char*) malloc(block_size);
-	block_ptr bitfieldcopy = (block_ptr) atoi(free_bitfield);
+	block_ptr bitfield_start_block = 1032 / block_size;
+	int bitfield_curr_byte = 1032; 
+	request(bitfield_start_block, buffer, 'r'); //get the entire block the bitfield starts at so we don't overwrite it with uninitialized data from buffer
 	for(int i = 0; i < num_blocks/8; i++){
-		buffer = free_bitfield + i*block_size;
-		bitfieldcopy += i*block_size;
-		request(bitfieldcopy, buffer, 'w');
+		buffer[bitfield_curr_byte % block_size] = free_bitfield[i];
+		bitfield_curr_byte++;
+		if(bitfield_curr_byte % block_size == 0){
+			request(bitfield_start_block, buffer, 'w');
+			bitfield_start_block++;
+			request(bitfield_start_block, buffer, 'r');
+		}
 	}
 
 	pthread_mutex_unlock(&free_block_list);
