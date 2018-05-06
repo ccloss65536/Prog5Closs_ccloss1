@@ -18,7 +18,7 @@ void request(block_ptr block, void* buffer, char read_write){
 	//printf("Why does this not work!?!?!?!?\n");
 
 	int oldrequest = next_free_request;
-	printf("In: %d\n", oldrequest); 
+	//printf("In: %d\n", oldrequest); 
 
 	disk_request newRequest;
 	newRequest.requested = block;
@@ -345,5 +345,72 @@ void list(){
 }
 
 void shutdown(){
-	pthread_cond_signal(&request_end);
+
+	/* STEPS:
+	1. get inode block pointers (1 per)
+	2. for each inode, zero it out (including the indirect and double indirect pointers), then zero out free block list bit for that block
+	3. for each file in the memory, create an inode and store the data there
+	*/
+
+	pthread_mutex_lock(&inode_list);
+	pthread_mutex_lock(&free_block_list);
+
+	char* zero = malloc(block_size);
+	*zero = '0';
+
+	char* inodelist = (char*) malloc(block_size);
+	for(int m = 0; i < ((1032 / block_size) + 1); i++){
+		request(m*block_size, inodelist, 'r');
+		block_ptr currentNodePtr = (block_ptr) inodelist;
+		if(m == 0){
+			currentNodePtr++;
+			currentNodePtr++;
+			for(int i = 0; i < block_size - 2; i++){
+				char* currNode = (char*) malloc(block_size);
+				request(currentNodePtr, currNode, 'r');
+				//characters 32 thru 92 make up the 15 numbers in the inode. need a way to translate each 4 characters into another number
+				//need to dereference indirect and double indirect pointers
+				//assign char* zero to them
+				for(int j = 0; j < block_size; j++) currNode[j] = '\7'; //zero out inode
+				free_bitfield[currentNodePtr/8] &= ~(1 << (currentNodePtr % 8)); //take the original pointer, translate that into the bit for the free block list, zero out that bit
+			}
+		} else{
+			for(int i = 0; i < block_size - 2; i++){
+				char* currNode = (char*) malloc(block_size);
+				request(currentNodePtr, currNode, 'r');
+				//characters 32 thru 92 make up the 15 numbers in the inode. need a way to translate each 4 characters into another number
+				//need to dereference indirect and double indirect pointers
+				//assign char* zero to them
+				for(int j = 0; j < block_size; j++) currNode[j] = '\7'; //zero out inode
+				free_bitfield[currentNodePtr/8] &= ~(1 << (currentNodePtr % 8)); //take the original pointer, translate that into the bit for the free block list, zero out that bit
+			}
+		}
+	}
+	
+	for(int i = 0; i < 256; i++){
+		//assign the free block to a spot:
+		block_ptr free_block = (block_ptr)find_free_block();
+		inode* buffer = (inode*) malloc(block_size);
+		*buffer = inodes[i];
+		request(free_block, (void*) buffer, 'w');
+
+		//mark that particular bit in the free bitfield as being used:
+		free_bitfield[free_block/8] &= ~(1 << (free_block % 8));
+	}
+
+	//write the new bitfield to disk
+	char* buffer = (char*) malloc(block_size);
+	block_ptr bitfieldcopy = (block_ptr) atoi(free_bitfield);
+	for(int i = 0; i < num_blocks/8; i++){
+		buffer = free_bitfield + i*block_size;
+		bitfieldcopy += i*block_size;
+		request(bitfieldcopy, buffer, 'w');
+	}
+
+	pthread_mutex_unlock(&free_block_list);
+	pthread_mutex_unlock(&inode_list);
+
+	sleep(1);
+
+	request(0, NULL, 's');
 }

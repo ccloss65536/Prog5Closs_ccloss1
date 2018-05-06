@@ -28,7 +28,7 @@ void* readThreadOps(void* threadName){
 	pthread_mutex_unlock(&all_initialized_mutex); //work around pthread_create corrupting inode list: Load from disk after all pthread_creates done 
 
   FILE* threadOps;
-  char lineBuff[1024];
+  //char lineBuff[1024];
   //string* operations = {"CREATE","IMPORT","CAT","DELETE","WRITE","READ","LIST","SHUTDOWN"};
   //converts the thread name to a string and opens it for reading
   char* nameOfThread = (char*) threadName;
@@ -61,7 +61,8 @@ void* readThreadOps(void* threadName){
       //-1 when file does not exist
       if(find_file(newFileName) != -1){
         perror("Error: Could not create file because file already exists.\n");
-        continue;;
+        continue;
+
       }
       //if it reaches this point then the file is not on disk so create it
 
@@ -257,6 +258,7 @@ int main(int argc, char** argv){
   pthread_cond_wait(&request_end, &request_end_mutex);
 
   if(argc >= 3){
+    pthread_cancel(opThread1);
     pthread_join(opThread1, NULL);
     if(argc >= 4){ //only join a thread if we created it earlier{
       pthread_cancel(opThread2);
@@ -276,5 +278,6 @@ int main(int argc, char** argv){
     exit(1);
   }
   pthread_join(schedThread, NULL);
+  printf("Successfully shutdown\n");
   return 0;
 }
