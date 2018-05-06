@@ -26,7 +26,7 @@ int take_request(){
 
 	
 	int oldnext = next_to_do;
-	printf("Out: %d\n", oldnext);
+	//printf("Out: %d\n", oldnext);
 	next_to_do = (next_to_do + 1) % max_requests;
 	wakeup_arr[oldnext] = 1;
 	sem_post(&request_condition_mutex);
@@ -38,15 +38,15 @@ int take_request(){
 }
 
 void write_request(block_ptr bp, void* buffer){
-	printf( "Block %d from  %p\n", bp, buffer);
+	//printf( "Block %d from  %p\n", bp, buffer);
 	lseek(diskFile, bp*block_size, SEEK_SET);
 	write(diskFile, buffer, block_size);
 }
 
 void read_request(block_ptr bp, void* buffer){
-	printf( "Block %d into %p\n", bp, buffer);
+	//printf( "Block %d into %p\n", bp, buffer);
 	lseek(diskFile, bp*block_size, SEEK_SET);
-	printf("It goes here\n");
+	//printf("It goes here\n");
 	read(diskFile, buffer, block_size);
 }
 

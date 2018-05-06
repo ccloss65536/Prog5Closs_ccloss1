@@ -18,7 +18,7 @@ void request(block_ptr block, void* buffer, char read_write){
 	//printf("Why does this not work!?!?!?!?\n");
 
 	int oldrequest = next_free_request;
-	printf("In: %d\n", oldrequest); 
+	//printf("In: %d\n", oldrequest); 
 
 	disk_request newRequest;
 	newRequest.requested = block;
@@ -334,25 +334,54 @@ void list(){
 
 void shutdown(){
 
-	char* inodelist2 = (char*) malloc(((1032/block_size)*block_size) + block_size);
-	for(int i = 0; i < (1032/block_size) +1; i++){
-		request(i, inodelist2, 'r');
+	/* STEPS:
+	1. get inode map pointers
+	2. for each file, check each pointer, to find the pointer that corresponds to that exact file
+	3. if no inode exists with the same name, then create one
+	4. store the data about the inode (which comes from memory) in that inode (on the disk)
+	*/
+
+	/*char fileBuffer[block_size];
+	int i = 0;
+	int bytesRead = read(unixFile, fileBuffer, block_size);
+	while(bytesRead){
+
+		//that way the location is updated based on how much input was taken
+		//if it was a whole block it will add block_size
+		//else it will just add the amount of bytes read
+		write_ssfs(new_name, 'a', i*block_size, bytesRead, fileBuffer);
+		i++;
+		bytesRead = read(unixFile, fileBuffer, block_size);
+	}*/
+
+	char* inodelist = (char*) malloc(((1032/block_size)*block_size) + block_size);
+	char* inodelist2 = (char*) malloc(block_size);
+	char* actualInodeList = (char*) malloc(((1024/block_size)*block_size) + block_size);
+
+	for(int m = 0; m < (1032/block_size) +1; m++){ //grab first block of inode pointers, and examine them to see if this certain inode is here
+		request(m, inodelist2, 'r');
+		strcat(inodelist, inodelist2);
 	}
-	inode** inodelist = (inode**) inodelist2;
+
+	strcpy(actualInodeList, inodelist+2);
+	block_ptr** inodemap = (blockptr**) actualInodeList;
+
+	//inodemap contains pointers to each inode
 
 	for(int i = 0; i < 256; i++){	//for every file...
 		if(inodes[i].size != -1){	//if the file exists (in memory)
-			for(int j = 0; j < 256; j++){ //must go to disk pointers for inode
 
-				int* currentInode = (int*)inodelist[2 + j];
+			for(int j = 0; j < 256; j++){ 
+
+				block_ptr currentInodeBlockPtr = *(inodemap[j]);
 
 				char* currentInodeData = malloc(block_size); //grab one block of inode pointers at a time
-				request((block_ptr)(currentInode), currentInodeData, 'r');
-				inode currentInodeBlock = *((inode*) currentInodeData);
+				request(currentInodeBlockPtr, currentInodeData, 'r');
+				inode currentInode = *((inode*) currentInodeData);
 
-				if(currentInodeBlock.size != 0){ //if the block for the file exists on disk
+				if(currentInode.size != 0){ //if the block for the file exists on disk
 
-					if(strcmp(inodes[i].name, currentInodeBlock.name) == 0){ //if the inode pointer matches the file that we're storing
+					if(strcmp(inodes[i].name, currentInode.name) == 0){ //if the inode pointer matches the file that we're storing
 						char* dataBuffer = malloc(block_size);				//store the data about the file
 						
 						char* ptr1 = malloc(32);
@@ -374,7 +403,7 @@ void shutdown(){
 						strcat(dataBuffer, (char*)ptr3);
 						strcat(dataBuffer, (char*)ptr4);
 
-						request((block_ptr) currentInode, (void*) dataBuffer, 'w'); //write said data to the actual inode pointer on the disk
+						request(currentInodeBlockPtr, (void*) dataBuffer, 'w'); //write said data to the actual inode pointer on the disk
 					}
 				}
 
@@ -411,15 +440,15 @@ void shutdown(){
 	}
 
 	char* buffer = (char*) malloc(block_size);
-	char* bitfieldcopy = free_bitfield;
+	block_ptr bitfieldcopy = (block_ptr) atoi(free_bitfield);
 	for(int i = 0; i < num_blocks/8; i++){
 		buffer = free_bitfield + i*block_size;
 		bitfieldcopy += i*block_size;
-		request((block_ptr)bitfieldcopy, buffer, 'w');
+		request(bitfieldcopy, buffer, 'w');
 
 	}
 
-	sleep(5);
+	sleep(1);
 
 	request(0, NULL, 's');
 }
