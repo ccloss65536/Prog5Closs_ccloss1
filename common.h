@@ -70,6 +70,7 @@ pthread_mutex_t request_end_mutex;
 pthread_cond_t request_end;
 pthread_cond_t all_initialized;
 pthread_mutex_t all_initialized_mutex;
+pthread_mutex_t num_files_mut;
 char* free_bitfield; //needs dynamic allocation, b/c its of variable size
 int diskFile; //file descriptor
 int writeFd;

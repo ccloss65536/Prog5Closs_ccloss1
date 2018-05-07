@@ -131,7 +131,8 @@ void* readThreadOps(void* threadName){
       list();
 
     } else if(strcmp(commands, "SHUTDOWN") == 0){
-      shutdown();
+      //printf("oh crap\n");
+			shutdown();
       fclose(threadOps);
       pthread_exit(0);
 
@@ -166,6 +167,7 @@ int main(int argc, char** argv){
 	pthread_mutex_init(&free_block_list, &recursive);
 	pthread_mutex_init(&request_fufilled_mutex, NULL);
 	pthread_mutex_init(&request_end_mutex, NULL);
+	pthread_mutex_init(&num_files_mut, NULL);
 	pthread_cond_init(&request_end, NULL);
 	pthread_cond_init(&all_initialized, NULL);
 	pthread_mutex_init(&all_initialized_mutex, NULL);
@@ -234,6 +236,11 @@ int main(int argc, char** argv){
 	read(diskFile, &block_size, 4);
 	for(int i = 0; i < max_files; i++){
       inodes[i].size = -1;
+			for(int j = 0; j < 12; j++){
+				inodes[i].direct[j] = -1;
+			}
+			inodes[i].indirect = -1;
+			inodes[i].double_indirect = -1;
 	}
 
 	int q = 0;

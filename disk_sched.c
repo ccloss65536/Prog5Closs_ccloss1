@@ -19,6 +19,8 @@ int take_request(){
 	disk_request next_consumed = pending[next_to_do];
 
 	if (next_consumed.read_write == 's'){
+		//sem_post(&request_condition_mutex);
+		//sem_post(&request_empty);
 		return 0; 
 	}
 	if (next_consumed.read_write == 'w') write_request(next_consumed.requested, next_consumed.buffer);
@@ -41,13 +43,19 @@ int take_request(){
 }
 
 void write_request(block_ptr bp, void* buffer){
-	fprintf(stderr,  "Block %d from  %p\n", bp, buffer);
+	if(bp >= num_blocks){
+		fprintf( stderr, "AAAAAAA!!: Block %d from %p\n", bp, buffer);
+		exit(1);
+	}
 	lseek(diskFile, bp*block_size, SEEK_SET);
 	write(diskFile, buffer, block_size);
 }
 
 void read_request(block_ptr bp, void* buffer){
-	fprintf( stderr, "Block %d into %p\n", bp, buffer);
+	if(bp >= num_blocks){
+		fprintf( stderr, "AAAAAAA!!: Block %d into %p\n", bp, buffer);
+		exit(1);
+	}
 	lseek(diskFile, bp*block_size, SEEK_SET);
 	//printf("It goes here\n");
 	read(diskFile, buffer, block_size);
@@ -55,6 +63,8 @@ void read_request(block_ptr bp, void* buffer){
 
 void* runner(){
 	while(take_request());
+	pthread_mutex_lock(&request_end_mutex);
 	pthread_cond_signal(&request_end);
+	pthread_mutex_unlock(&request_end_mutex);
 	pthread_exit(0);
 }

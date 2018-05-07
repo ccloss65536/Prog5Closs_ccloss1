@@ -1,15 +1,17 @@
 file ssfs 
 #break ssfs.c:156
-break ssfs.c:252
+#break ssfs.c:252
 #break disk_ops.c:242
+break disk_ops.c:383
 #watch inodes[0].direct
-watch num_blocks
-watch block_size 
+
 #break disk_ops.c:76
 run TEST test1.txt
-while(1)
-	n
-	x /128xb free_bitfield
-	thread 3
-end
-info threads
+#watch indirect[108]
+#watch indirect[109]
+#watch indirect[110]
+#while(1)
+#	n
+#	x /128xb indirect
+#end
+#info threads

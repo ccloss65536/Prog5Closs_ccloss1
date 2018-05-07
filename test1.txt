@@ -1,7 +1,0 @@
-CREATE lol.txt
-LIST
-WRITE lol.txt a 0 650
-READ lol.txt 0 650
-LIST
-SHUTDOWN
- 

@@ -27,7 +27,7 @@ void request(block_ptr block, void* buffer, char read_write){
 	newRequest.buffer = buffer;
 	newRequest.read_write = read_write;
 	pending[next_free_request] = newRequest;
-	//printf("Write to array\n");
+	//fprintf(stderr, "%d %p %c\n: ", block, buffer, read_write);
 	next_free_request = (next_free_request + 1) % max_requests;
 
 	sem_post(&request_condition_mutex);
@@ -55,7 +55,7 @@ int find_free_block(){
 			break;
 		}
 	}
-	if(i == num_blocks/8) free_block = -1;
+	if(i == num_blocks) free_block = -1;
 	pthread_mutex_unlock(&free_block_list);
 	return free_block;
 }
@@ -75,24 +75,22 @@ int find_file(char* name){
 }
 
 void create(char* name){
-
-	inode newFileInode;
-	strcpy(newFileInode.name, name);
-	newFileInode.size = 0;
-
+	pthread_mutex_lock(&num_files_mut);
 	if(num_files == max_files){
 		printf("Error: max number of files reached\n");
 		return;
 	}
+	pthread_mutex_unlock(&num_files_mut);
+
 	//Moved to avoid holding the mutex and returning if there are 256 files
 	pthread_mutex_lock(&inode_list);//another thread could be creating a file and editting the inode list
 
 	for(int i =0; i < max_files; i++){
 		if(inodes[i].size == -1){
 			int freeb = find_free_block();
-			newFileInode.direct[0] = freeb;
-			inodes[i] = newFileInode;
-			//printf("%d vs. %d", inodes[i].direct[0], freeb);
+			inodes[i].direct[0] = freeb;
+			strcpy(inodes[i].name, name);
+			inodes[i].size = 0;
 			//inodes[i].direct[0] = find_free_block(); //Make sure every file has some splace to write into, even if it's curretly empty
 			num_files++;
 			break;
@@ -130,24 +128,33 @@ void import(char* new_name, char* unix_name){
 }
 
 void cat(char* name){
+	pthread_mutex_lock(&inode_list);
 	int index = find_file(name);
 	if(index < 0) {
 		printf("File \"%s\" not found!\n",name);
+		pthread_mutex_lock(&inode_list);
 		return;
 	}
+
 	//printf("File is of size: %d!!!!\n", inodes[index].size);
 	read_ssfs(name, 0, inodes[index].size, NULL);
+	pthread_mutex_unlock(&inode_list);
 }
 void erase(char* name){
+	pthread_mutex_lock(&inode_list);
 	int index = find_file(name);
 	inode n;
 	if(index > -1){
-		pthread_mutex_lock(&inode_list);
+
 		n = inodes[index];
-		pthread_mutex_unlock(&inode_list);
 	} else {
-		printf("File %s not found!\n",name);
+			printf("File %s not found!\n",name);
+			pthread_mutex_unlock(&inode_list);
+			return;
+
 	}
+	pthread_mutex_unlock(&inode_list);
+
 	int* indirect = malloc(block_size);
 	int* double_indirect = malloc(block_size);
 	if(!indirect || !double_indirect){
@@ -190,13 +197,12 @@ void erase(char* name){
 
 
 void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buffer){
-
-	int index = find_file(name);
 	pthread_mutex_lock(&inode_list);
+	int index = find_file(name);
 	if(index < 0 || start_byte > inodes[index].size) {
 
 
-		printf("File \"%s\" not found or smalle than start byte!\n",name);
+		printf("File \"%s\" not found or is smaller than start byte!\n",name);
 
 		pthread_mutex_unlock(&inode_list);
 		return;
@@ -222,19 +228,26 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 	int old_end_block = file_inode.size / block_size;
 	int old_end_copy = old_end_block;
 	int new_end_block = (start_byte + num_bytes) / block_size;
-	for(;old_end_block < new_end_block && old_end_block < 12; old_end_block++){
-		inodes[index].direct[old_end_block] = find_free_block();
+	for(;old_end_block <  new_end_block && old_end_block < 12; old_end_block++){
+		if(inodes[index].direct[old_end_block + 1] < 0){
+			inodes[index].direct[old_end_block + 1] = find_free_block();
+		}
 	}
 	if(old_end_copy < 12 && new_end_block >= 12){
+		//printf("Do we get an indirect block?\n");
 		inodes[index].indirect = find_free_block();
+		//exit(0);
 	}
-	request(inodes[index].indirect, indirect, 'r'); //We need to keep the old data
-	for(;old_end_block < new_end_block && old_end_block < 12 + ptrs_per_block;old_end_block++){
-		indirect[old_end_block - 12] = find_free_block();
+	if( (old_end_block >= 12) && (old_end_copy < 12 + ptrs_per_block) ){
+		request(inodes[index].indirect, indirect, 'r'); //We need to keep the old data
+		for(;old_end_block < new_end_block && old_end_block < 12 + ptrs_per_block;old_end_block++){
+			indirect[old_end_block - 12] = find_free_block();
+		}
+		request(inodes[index].indirect, indirect, 'w');
 	}
-	request(inodes[index].indirect, indirect, 'w');
-	fprintf(stderr, "Single indirects complete!\n");
-	if(new_end_block >= 12 + ptrs_per_block && old_end_copy < 12  + ptrs_per_block){
+
+	//fprintf(stderr, "Single indirects complete!\n");
+	if( (new_end_block >= 12 + ptrs_per_block) && (old_end_copy < 12  + ptrs_per_block) ){
 		inodes[index].double_indirect = find_free_block();
 	}
 	if(old_end_block >= 12 + ptrs_per_block){
@@ -263,19 +276,21 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 	if(!buffer){
 		int g;
 		read_ssfs(name, start_byte, num_bytes, data);
-		for(g = 0; g < num_bytes; g++) data[g + start_byte] = input;
+		for(g = 0; g < num_bytes; g++){
+			data[g + start_byte] = input;
+		}
 	}
 	int start_block_ind = start_byte/block_size; //The start byte is in the file's start_block_indth data block
 	int curr_block_ind = start_block_ind;//keep track of which block we need to read from
 	int end_block_ind = (start_byte + num_bytes)/block_size;
 
-	for(; curr_block_ind < 12 && curr_block_ind <= end_block_ind; curr_block_ind++){
+	for(; (curr_block_ind < 12) && (curr_block_ind <= end_block_ind); curr_block_ind++){
 		request(inodes[index].direct[curr_block_ind], data + curr_block_ind*block_size, 'w');
 	}
 
 	if(curr_block_ind == 12){//the 0th through 11th blocks are direct blocks
 		request(inodes[index].indirect, indirect, 'r');
-		for(; curr_block_ind < 12 + ptrs_per_block  && curr_block_ind <= end_block_ind; curr_block_ind++){
+		for(; curr_block_ind < 12 + ptrs_per_block  && curr_block_ind < end_block_ind; curr_block_ind++){
 		request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'w');
 
 		}
@@ -301,12 +316,13 @@ void write_ssfs(char* name, char input, int start_byte, int num_bytes, char* buf
 
 }
 void read_ssfs(char* name, int start_byte, int num_bytes, char* buffer){
+	pthread_mutex_lock(&inode_list);
 	int index = find_file(name);
 	if(index < 0) {
 		printf("File \"%s\" not found!\n",name);
 		return;
 	}
-	pthread_mutex_lock(&inode_list);
+
 	inode file_inode = inodes[index];
 	pthread_mutex_unlock(&inode_list);
 	char* data = malloc( (num_bytes / block_size + 1) * block_size); //not an exact ceil, but memory is cheap and floatng point ops are not
@@ -322,14 +338,14 @@ void read_ssfs(char* name, int start_byte, int num_bytes, char* buffer){
 	int start_block_ind = start_byte/block_size; //The start byte is in the file's start_block_indth data block
 	int curr_block_ind = start_block_ind;//keep track of which block we need to read from
 	int end_block_ind = (start_byte + num_bytes)/block_size;
-	for(; curr_block_ind < 12 && curr_block_ind <= end_block_ind; curr_block_ind++){
+	for(; curr_block_ind < 12 && curr_block_ind < end_block_ind; curr_block_ind++){
 		request(file_inode.direct[curr_block_ind], data + curr_block_ind*block_size, 'r');
 	}
 	int ptrs_per_block = block_size/sizeof(block_ptr);
 
 	if(curr_block_ind == 12){//the 0th through 11th blocks are direct blocks
 		request(file_inode.indirect, indirect, 'r');
-		for(; curr_block_ind < 12 + ptrs_per_block  && curr_block_ind <= end_block_ind; curr_block_ind++){
+		for(; curr_block_ind < 12 + ptrs_per_block  && curr_block_ind < end_block_ind; curr_block_ind++){
 		request(indirect[curr_block_ind - 12], data + curr_block_ind*block_size, 'r');
 
 		}
@@ -382,6 +398,7 @@ void shutdown(){
 	int bytes_read = 0;
 	//number of bytes allocated before free bit list
 	int bytes_end = 1032;
+	int z = 0; //keep track of how many inodes so far
 	for(int m = 0; m < ((1032 / block_size)); m++){
 		request(m , inodelist, 'r');
 		/*for(int f = 0; f < block_size/sizeof(block_ptr); f++){
@@ -395,9 +412,17 @@ void shutdown(){
 			for(unsigned int i = 0; i < (block_size/sizeof(block_ptr) - 2) && bytes_read < bytes_end; i++){
 				if( (*currentNodePtr) > -1){
 					free_bitfield[(*currentNodePtr)/8] &= ~(1 << ((*currentNodePtr) % 8)); //take the original pointer, translate that into the bit for the free block list, zero out that bit
+
 				}
+				inodelist[z + 2] = find_free_block();
+				inode* buffer = (inode*) malloc(block_size);
+				*buffer = inodes[z];
+		//printf("Problem here?\n");
+				request(inodelist[z + 2], (void*) buffer, 'w');
+				free_bitfield[inodelist[z + 2] / 8] |= (1 << (inodelist[z + 2] % 8));
 				currentNodePtr++;
 				bytes_read += sizeof(block_ptr);
+				z++;
 
 			}
 		} else{
@@ -406,22 +431,20 @@ void shutdown(){
 				if( (*currentNodePtr) > -1){
 					free_bitfield[(*currentNodePtr)/8] &= ~(1 << ((*currentNodePtr) % 8)); //take the original pointer, translate that into the bit for the free block list, zero out that bit
 				}
+				inodelist[z % block_size/sizeof(block_ptr)] = find_free_block();
+				inode* buffer = (inode*) malloc(block_size);
+				*buffer = inodes[z];
+		//printf("Problem here?\n");
+				request(inodelist[z% block_size/sizeof(block_ptr)], (void*) buffer, 'w');
+				free_bitfield[inodelist[z % block_size/sizeof(block_ptr)] / 8] |= (1 << (inodelist[z% block_size/sizeof(block_ptr)] % 8));
+				z++;
 				currentNodePtr++;
 				bytes_read += sizeof(block_ptr);
 			}
 		}
+		request(m,inodelist, 'w');
 	}
 	//printf("Do we even get here???????\n");
-	for(int i = 0; i < 256; i++){
-		//assign the free block to a spot:
-		block_ptr free_block = (block_ptr)find_free_block();
-		inode* buffer = (inode*) malloc(block_size);
-		*buffer = inodes[i];
-		request(free_block, (void*) buffer, 'w');
-
-		//mark that particular bit in the free bitfield as being used:
-		free_bitfield[free_block/8] |= (1 << (free_block % 8));
-	}
 	//printf("How about here?\n");
 	//write the new bitfield to disk
 	char* buffer = (char*) malloc(block_size);
@@ -432,7 +455,8 @@ void shutdown(){
 		//printf("%d oh no\n", i);
 		buffer[bitfield_curr_byte % block_size] = free_bitfield[i];
 		bitfield_curr_byte++;
-		if(bitfield_curr_byte % block_size == 0){
+		if( (bitfield_curr_byte % block_size == 0) || (i == num_blocks/8 -1)){
+			//printf("Or here?\n");
 			request(bitfield_start_block, buffer, 'w');
 			bitfield_start_block++;
 			request(bitfield_start_block, buffer, 'r');

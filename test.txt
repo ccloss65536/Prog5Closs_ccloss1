@@ -1,3 +1,4 @@
-CREATE test.exe
-LIST
+IMPORT test.exe 
+WRITE test.exe a 0 6666
+CAT test.exe
 SHUTDOWN

@@ -1,0 +1,5 @@
+CREATE lol.txt
+WRITE lol.txt b 0 777
+LIST
+CAT lol.txt
+SHUTDOWN

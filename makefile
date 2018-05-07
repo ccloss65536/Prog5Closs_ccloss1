@@ -11,7 +11,7 @@ TESTOPTS = lol
 DEBUG_OPTS = --silent -x cmds.txt
 all: $(NAME1)
 test: new $(NAME1)
-	valgrind --tool=helgrind ./$(NAME1) TEST test1.txt
+	valgrind --tool=helgrind  ./$(NAME1) TEST test.txt test2.txt
 bigtest: new $(NAME1)
 	valgrind ./$(NAME1) TEST test_large.txt > tree_retrieved.jpg
 debug: new $(NAME1)
@@ -32,7 +32,7 @@ $(NAME1): $(NAME1).c common.h disk_ops.c disk_sched.c
 	$(COMPILE) $(FLAGS) $(NAME1).o disk_ops.o disk_sched.o -o $(NAME1)
 $(NAME2): $(NAME2).c
 	$(COMPILE) -c $(FLAGS) $(NAME2).c
-	$(COMPILE) $(FLAGS) $(NAME2).o -o $(NAME2)
+	$(COMPILE) $(FLAGS) -O3 $(NAME2).o -o $(NAME2)
 new: $(NAME2) clean 
 	./$(NAME2) 1024 512 TEST
 	chmod 0777 TEST
